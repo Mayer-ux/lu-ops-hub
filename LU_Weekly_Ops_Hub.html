@@ -12,119 +12,6 @@
 <title>LU Weekly Operations Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-// ── TOKEN EXPIRY WATCH ────────────────────────────────────────────
-var tokenExpiry=0;
-var tokenWatchInterval=null;
-
-function startTokenWatch(){
-  if(tokenWatchInterval)clearInterval(tokenWatchInterval);
-  tokenWatchInterval=setInterval(function(){
-    if(token&&Date.now()>tokenExpiry){
-      clearInterval(tokenWatchInterval);
-      token=null;
-      // Show non-blocking warning
-      var warn=document.createElement('div');
-      warn.style.cssText='position:fixed;top:0;left:0;right:0;background:var(--amber);color:#000;text-align:center;padding:10px;font-size:12px;font-weight:700;z-index:9999;';
-      warn.innerHTML='Session expired. <button onclick="reAuth()" style="background:#000;color:#fff;border:none;border-radius:3px;padding:3px 10px;font-weight:700;cursor:pointer;margin-left:8px;">Re-authenticate</button>';
-      document.body.appendChild(warn);
-    }
-  },30000); // check every 30s
-}
-
-async function reAuth(){
-  document.querySelectorAll('body > div[style*="position:fixed"][style*="top:0"]').forEach(function(el){
-    if(el.id!=='toast')el.remove();
-  });
-  return new Promise(function(resolve){
-    var client=window.google.accounts.oauth2.initTokenClient({
-      client_id:CLIENT_ID,scope:SCOPES,
-      callback:function(resp){
-        if(!resp.error){
-          token=resp.access_token;
-          tokenExpiry=Date.now()+(((resp.expires_in||3600)-60)*1000);
-          startTokenWatch();
-          toast('Session refreshed');
-        }
-        resolve();
-      }
-    });
-    client.requestAccessToken({prompt:''});
-  });
-}
-
-// ── SAFE FETCH WRAPPER ────────────────────────────────────────────
-async function safeFetch(url, opts, label){
-  // Refresh token if near expiry
-  if(token&&Date.now()>tokenExpiry-30000){await reAuth();}
-  try{
-    var res=await fetch(url,opts);
-    var d=await res.json();
-    if(d.error){
-      var msg=d.error.message||JSON.stringify(d.error);
-      toast((label?label+': ':'')+msg,'err');
-      return null;
-    }
-    return d;
-  }catch(e){
-    toast((label?label+' failed: ':'')+e.message,'err');
-    return null;
-  }
-}
-
-// ── FIX openCalForProj to use upgraded modal ─────────────────────
-// openCalForProj defined below
-
-
-// ── LOADING STATE on initial fetch ───────────────────────────────
-var _origFetchSheet=fetchSheet;
-fetchSheet=async function(){
-  var tbody=document.getElementById('proj-tbody');
-  if(tbody&&!projects.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px 0;color:var(--mid);"><span class="spin spin-dark"></span> Loading from Google Sheets…</td></tr>';
-  }
-  return _origFetchSheet.apply(this,arguments);
-};
-
-
-// ── API KEY MANAGEMENT ────────────────────────────────────────────
-function saveApiKey(){
-  var key=document.getElementById('apikey-input').value.trim();
-  var err=document.getElementById('apikey-err');
-  if(!key){err.textContent='Please enter your API key.';err.style.display='block';return;}
-  if(!key.startsWith('sk-ant-')){err.textContent='Key should start with sk-ant-...';err.style.display='block';return;}
-  localStorage.setItem('lu_akey',key);
-  AKEY=key;
-  err.style.display='none';
-  document.getElementById('apikey-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  loadEmails();fetchSheet();
-}
-
-function skipApiKey(){
-  document.getElementById('apikey-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  loadEmails();fetchSheet();
-  toast('AI features disabled — add API key in Settings anytime','err');
-}
-
-function updateApiKey(){
-  var key=document.getElementById('settings-apikey').value.trim();
-  if(!key){toast('Enter a valid API key','err');return;}
-  if(!key.startsWith('sk-ant-')){toast('Key should start with sk-ant-...','err');return;}
-  localStorage.setItem('lu_akey',key);
-  AKEY=key;
-  toast('API key updated ✓');
-}
-
-function clearApiKey(){
-  if(!confirm('Remove API key? AI features will be disabled.'))return;
-  localStorage.removeItem('lu_akey');
-  AKEY='';
-  document.getElementById('settings-apikey').value='';
-  toast('API key removed');
-}
-
-</script>
 
 <style>
 :root{--dark:#191818;--light:#faf9f5;--mid:#b0aea5;--lg:#e8e6dc;--red:#ec1c24;--blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--purple:#8b5cf6;--orange:#f97316;}
@@ -1159,9 +1046,119 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
 
 <div id="toast"></div>
 
-
-
 <script>
+// ── TOKEN EXPIRY WATCH ────────────────────────────────────────────
+var tokenExpiry=0;
+var tokenWatchInterval=null;
+
+function startTokenWatch(){
+  if(tokenWatchInterval)clearInterval(tokenWatchInterval);
+  tokenWatchInterval=setInterval(function(){
+    if(token&&Date.now()>tokenExpiry){
+      clearInterval(tokenWatchInterval);
+      token=null;
+      // Show non-blocking warning
+      var warn=document.createElement('div');
+      warn.style.cssText='position:fixed;top:0;left:0;right:0;background:var(--amber);color:#000;text-align:center;padding:10px;font-size:12px;font-weight:700;z-index:9999;';
+      warn.innerHTML='Session expired. <button onclick="reAuth()" style="background:#000;color:#fff;border:none;border-radius:3px;padding:3px 10px;font-weight:700;cursor:pointer;margin-left:8px;">Re-authenticate</button>';
+      document.body.appendChild(warn);
+    }
+  },30000); // check every 30s
+}
+
+async function reAuth(){
+  document.querySelectorAll('body > div[style*="position:fixed"][style*="top:0"]').forEach(function(el){
+    if(el.id!=='toast')el.remove();
+  });
+  return new Promise(function(resolve){
+    var client=window.google.accounts.oauth2.initTokenClient({
+      client_id:CLIENT_ID,scope:SCOPES,
+      callback:function(resp){
+        if(!resp.error){
+          token=resp.access_token;
+          tokenExpiry=Date.now()+(((resp.expires_in||3600)-60)*1000);
+          startTokenWatch();
+          toast('Session refreshed');
+        }
+        resolve();
+      }
+    });
+    client.requestAccessToken({prompt:''});
+  });
+}
+
+// ── SAFE FETCH WRAPPER ────────────────────────────────────────────
+async function safeFetch(url, opts, label){
+  // Refresh token if near expiry
+  if(token&&Date.now()>tokenExpiry-30000){await reAuth();}
+  try{
+    var res=await fetch(url,opts);
+    var d=await res.json();
+    if(d.error){
+      var msg=d.error.message||JSON.stringify(d.error);
+      toast((label?label+': ':'')+msg,'err');
+      return null;
+    }
+    return d;
+  }catch(e){
+    toast((label?label+' failed: ':'')+e.message,'err');
+    return null;
+  }
+}
+
+// ── FIX openCalForProj to use upgraded modal ─────────────────────
+// openCalForProj defined below
+
+
+// ── LOADING STATE on initial fetch ───────────────────────────────
+var _origFetchSheet=fetchSheet;
+fetchSheet=async function(){
+  var tbody=document.getElementById('proj-tbody');
+  if(tbody&&!projects.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px 0;color:var(--mid);"><span class="spin spin-dark"></span> Loading from Google Sheets…</td></tr>';
+  }
+  return _origFetchSheet.apply(this,arguments);
+};
+
+
+// ── API KEY MANAGEMENT ────────────────────────────────────────────
+function saveApiKey(){
+  var key=document.getElementById('apikey-input').value.trim();
+  var err=document.getElementById('apikey-err');
+  if(!key){err.textContent='Please enter your API key.';err.style.display='block';return;}
+  if(!key.startsWith('sk-ant-')){err.textContent='Key should start with sk-ant-...';err.style.display='block';return;}
+  localStorage.setItem('lu_akey',key);
+  AKEY=key;
+  err.style.display='none';
+  document.getElementById('apikey-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadEmails();fetchSheet();
+}
+
+function skipApiKey(){
+  document.getElementById('apikey-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadEmails();fetchSheet();
+  toast('AI features disabled — add API key in Settings anytime','err');
+}
+
+function updateApiKey(){
+  var key=document.getElementById('settings-apikey').value.trim();
+  if(!key){toast('Enter a valid API key','err');return;}
+  if(!key.startsWith('sk-ant-')){toast('Key should start with sk-ant-...','err');return;}
+  localStorage.setItem('lu_akey',key);
+  AKEY=key;
+  toast('API key updated ✓');
+}
+
+function clearApiKey(){
+  if(!confirm('Remove API key? AI features will be disabled.'))return;
+  localStorage.removeItem('lu_akey');
+  AKEY='';
+  document.getElementById('settings-apikey').value='';
+  toast('API key removed');
+}
+
 var CLIENT_ID='420796867704-7ebngjpfk76h5g8hl7ch5afm460a6ki0.apps.googleusercontent.com';
 var SHEET_ID='1ijACPbKXMbk7BDjPBTvw0DUsjlklHMJqxA1wYeP0jG0';
 var CUR_TAB='Current Project List';
