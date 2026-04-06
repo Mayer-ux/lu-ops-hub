@@ -1123,21 +1123,22 @@ fetchSheet=async function(){
 
 // ── API KEY MANAGEMENT ────────────────────────────────────────────
 function saveApiKey(){
-  var key=document.getElementById('apikey-input').value.trim();
-  var err=document.getElementById('apikey-err');
-  if(!key){err.textContent='Please enter your API key.';err.style.display='block';return;}
-  if(!key.startsWith('sk-ant-')){err.textContent='Key should start with sk-ant-...';err.style.display='block';return;}
+  var key=(document.getElementById('apikey-input')||{}).value;
+  if(!key)key='';key=key.trim();
+  var errs=document.querySelectorAll('#apikey-err');
+  if(!key){errs.forEach(function(el){el.textContent='Please enter your API key.';el.style.display='block';});return;}
+  if(!key.startsWith('sk-ant-')){errs.forEach(function(el){el.textContent='Key should start with sk-ant-...';el.style.display='block';});return;}
   localStorage.setItem('lu_akey',key);
   AKEY=key;
-  err.style.display='none';
-  document.getElementById('apikey-screen').style.display='none';
-  document.getElementById('app').style.display='block';
+  errs.forEach(function(el){el.style.display='none';});
+  document.querySelectorAll('#apikey-screen').forEach(function(el){el.style.display='none';});
+  document.querySelectorAll('#app').forEach(function(el){el.style.display='block';});
   loadEmails();fetchSheet();
 }
 
 function skipApiKey(){
-  document.getElementById('apikey-screen').style.display='none';
-  document.getElementById('app').style.display='block';
+  document.querySelectorAll('#apikey-screen').forEach(function(el){el.style.display='none';});
+  document.querySelectorAll('#app').forEach(function(el){el.style.display='block';});
   loadEmails();fetchSheet();
   toast('AI features disabled — add API key in Settings anytime','err');
 }
@@ -1205,11 +1206,12 @@ function doSignIn(){
         // Check if API key is set
         AKEY=localStorage.getItem('lu_akey')||'';
         if(!AKEY){
-          document.getElementById('auth-screen').style.display='none';
-          document.getElementById('apikey-screen').style.display='flex';
+          document.querySelectorAll('#auth-screen').forEach(function(el){el.style.display='none';});
+          document.querySelectorAll('#apikey-screen').forEach(function(el){el.style.display='flex';});
         }else{
-          document.getElementById('auth-screen').style.display='none';
-          document.getElementById('app').style.display='block';
+          document.querySelectorAll('#auth-screen').forEach(function(el){el.style.display='none';});
+          document.querySelectorAll('#apikey-screen').forEach(function(el){el.style.display='none';});
+          document.querySelectorAll('#app').forEach(function(el){el.style.display='block';});
           loadEmails();fetchSheet();
         }
       },
