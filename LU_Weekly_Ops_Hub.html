@@ -1247,17 +1247,23 @@ function objToRow(hdrs,obj){return hdrs.map(function(h){return obj[h]||'';});}
 async function fetchSheet(){
   setSyncing(true);
   try{
-    var cur=await getRange(CUR_TAB);var rows=cur.values||[];
-    if(rows.length){headers=rows[0];console.log('[LU Hub] Sheet headers loaded:',JSON.stringify(headers));projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});console.log('[LU Hub] First project:',JSON.stringify(projects[0]));}
-    try{
-      var comp=await getRange(COMP_TAB);var cr=comp.values||[];
-      if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}
-    }catch(e){}
+    // Fetch both tabs in parallel — cuts sync time roughly in half
+    var results=await Promise.all([
+      getRange(CUR_TAB),
+      getRange(COMP_TAB).catch(function(){return null;})
+    ]);
+    var cur=results[0],comp=results[1];
+    var rows=cur.values||[];
+    if(rows.length){
+      headers=rows[0];
+      projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});
+    }
+    if(comp){var cr=comp.values||[];if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}}
     renderTracker();
     var nk=compHdrs.find(function(h){return /name/i.test(h);})||'';
     document.getElementById('comp-count').textContent=completed.filter(function(p){return p[nk];}).length;
-    // Ensure all persistence tabs exist
-    ensureAllTabs();
+    // Ensure persistence tabs exist in background — don't block UI
+    setTimeout(function(){ensureAllTabs();},500);
   }catch(e){toast('Failed to load: '+e.message,'err');}
   setSyncing(false);
 }
@@ -1681,7 +1687,7 @@ async function syncCal(){
         endTime:e.end.dateTime?ed.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}):'',
         duration:dur,attendees:att,description:e.description||''};
     });
-    renderCal();await loadLog();toast(calEvents.length+' events loaded');
+    renderCal();loadLog();toast(calEvents.length+' events loaded');
   }catch(e){toast('Calendar error: '+e.message,'err');}
   hideSp('cal-spin');
 }
@@ -1710,8 +1716,10 @@ function renderCal(){
     });
     return Object.assign({},e,{project:matched||null,manualProject:null});
   });
-  // Restore persisted manual links from sheet
+  // Restore persisted manual links from sheet — update in place, re-render only if something changed
+  var _renderCalInProgress=false;
   loadMeetingLinks().then(function(linkMap){
+    if(_renderCalInProgress)return;
     var changed=false;
     fuEvents.forEach(function(fe){
       if(!fe.project&&!fe.manualProject&&linkMap[fe.id]){
@@ -1719,7 +1727,7 @@ function renderCal(){
         if(p){fe.manualProject=p;changed=true;}
       }
     });
-    if(changed)renderCal();
+    if(changed){_renderCalInProgress=true;renderCal();_renderCalInProgress=false;}
   });
 
   var today=new Date();
@@ -2072,9 +2080,6 @@ function buildProjOption(p,idx){
   // Debug: log on first call only
   if(!buildProjOption._logged){
     buildProjOption._logged=true;
-    console.log('[LU Hub] headers:', JSON.stringify(headers));
-    console.log('[LU Hub] resolved keys → nk:',nk,' entK:',entK,' dueK:',dueK,' noteK:',noteK);
-    console.log('[LU Hub] sample project:', JSON.stringify(p));
   }
   var opt=document.createElement('option');
   opt.value=String(idx);
@@ -2227,16 +2232,13 @@ function renderFU(){
 function linkFU(fuIdx,projIdx){
   var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
-  console.log('[LU Hub] linkFU: fuIdx='+fuIdx+' projIdx='+projIdx+' nk='+nk+' active.length='+active.length);
   var p=active[projIdx];
   if(p){
-    console.log('[LU Hub] linkFU: linking to project:', p[nk]);
-    fuEvents[fuIdx].manualProject=p;
+      fuEvents[fuIdx].manualProject=p;
     // Persist link to sheet
     saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
     renderCal();
   }else{
-    console.warn('[LU Hub] linkFU: no project found at index '+projIdx+' in active array of '+active.length);
   }
 }
 
