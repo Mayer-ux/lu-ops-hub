@@ -690,34 +690,6 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
   </div>
 </div>
 
-<div class="overlay" id="fu-modal">
-  <div class="modal">
-    <div class="modal-hdr"><div class="modal-title">Meeting Follow-Up</div><button class="modal-x" onclick="closeModal('fu-modal')">&#10005;</button></div>
-    <div style="background:var(--dark);border-radius:4px;padding:12px 14px;margin-bottom:18px;">
-      <div id="fu-ev" style="color:var(--light);font-weight:700;font-size:13px;"></div>
-      <div id="fu-pr" style="color:var(--mid);font-size:11px;margin-top:3px;"></div>
-    </div>
-    <div class="field"><label>STATUS UPDATE</label>
-      <select id="fu-st"><option value="">&#8212; No change &#8212;</option><option>Not Started</option><option>In Progress</option><option>Done</option><option>Blocked</option><option>Pending Review</option><option>Delayed</option></select>
-    </div>
-    <div class="field"><label>NEXT STEPS <span style="color:var(--mid);font-weight:400;">(auto-loads into next meeting invite)</span></label>
-      <textarea id="fu-nx" rows="3" placeholder="e.g. Confirm availability by Friday..."></textarea>
-    </div>
-    <div class="field"><label>MANAGER UPDATE NOTE <span style="color:var(--mid);font-weight:400;">(feeds into weekly report)</span></label>
-      <textarea id="fu-no" rows="3" placeholder="e.g. Time study scoping completed..."></textarea>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-outline" onclick="closeModal('fu-modal')">Cancel</button>
-      <button class="btn btn-red" onclick="saveFU()"><span id="fu-sv-sp" style="display:none;" class="spin"></span> Save &amp; Log</button>
-    </div>
-    <div style="margin-top:16px;border-top:1px solid var(--lg);padding-top:14px;">
-      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mid);margin-bottom:8px;">SCHEDULE NEXT MEETING?</div>
-      <div class="grid2"><div class="field"><label>DATE</label><input id="fu-nd" type="date"/></div><div class="field"><label>TIME</label><input id="fu-nt" type="time" value="09:00"/></div></div>
-      <button class="btn btn-blue" style="width:100%;" onclick="schedNext()">&#128197; Schedule Next Meeting</button>
-    </div>
-  </div>
-</div>
-
 <div class="overlay" id="comp-modal">
   <div class="modal modal-wide">
     <div class="modal-hdr"><div class="modal-title">Completed Projects</div><button class="modal-x" onclick="closeModal('comp-modal')">&#10005;</button></div>
@@ -1525,10 +1497,14 @@ function renderCal(){
         var fu=fuEvents[fuIdx];
         var proj=fu?(fu.manualProject||fu.project):null;
         var isPast=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'))<=now;
-        var borderColor=isPast?'var(--amber)':'var(--red)';
+        var isLogged=!!_loggedMeetings[e.date+'|'+e.title];
+        var borderColor=isLogged?'var(--green)':isPast?'var(--amber)':'var(--red)';
 
-        gridHtml+='<div style="background:var(--dark);border-left:3px solid '+borderColor+';border-radius:3px;padding:8px 10px;margin-bottom:6px;">';
-        gridHtml+='<div style="color:var(--light);font-weight:700;font-size:11px;line-height:1.3;">'+esc(e.title)+'</div>';
+        gridHtml+='<div style="background:var(--dark);border-left:3px solid '+borderColor+';border-radius:3px;padding:8px 10px;margin-bottom:6px;'+(isLogged?'opacity:0.85;':'')+'}">';
+        gridHtml+='<div style="display:flex;align-items:center;gap:4px;">';
+        if(isLogged)gridHtml+='<span style="color:var(--green);font-size:9px;font-weight:800;">✓</span>';
+        gridHtml+='<div style="color:var(--light);font-weight:700;font-size:11px;line-height:1.3;flex:1;">'+esc(e.title)+'</div>';
+        gridHtml+='</div>';
         gridHtml+='<div style="color:var(--mid);font-size:10px;margin-top:3px;">'+esc(e.startTime+(e.endTime?' – '+e.endTime:'')+(e.duration?' ('+e.duration+')':''))+'</div>';
         if(e.attendees&&e.attendees.length){
           gridHtml+='<div style="color:#888;font-size:10px;margin-top:3px;line-height:1.3;">'+esc(e.attendees.join(', '))+'</div>';
@@ -2032,7 +2008,9 @@ function linkFU(fuIdx,projIdx){
 }
 
 function openFUModal(idx){
-  var e=fuEvents[idx],p=e.project||e.manualProject;
+  var e=fuEvents[idx];
+  var p=e.manualProject||e.project;
+  if(!p){toast('No project linked to this meeting.','err');return;}
   var nk=K(/^project.?name$/i)||K(/^project$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   curFU={idx:idx,proj:p,event:e};
   var d=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'));
@@ -2062,6 +2040,8 @@ async function saveFU(){
     }
     toast('Logged');closeModal('fu-modal');
     _logCache=null; // invalidate so next loadLog fetches fresh
+    _loggedMeetings[event.date+'|'+event.title]=true; // mark immediately so card turns green
+    _renderCalBusy=false; renderCal(); // re-render calendar to show green border
     await fetchSheet();await loadFU();
   }catch(e){toast('Failed: '+e.message,'err');}
   hideSp('fu-sv-sp');
@@ -2085,6 +2065,7 @@ async function schedNext(){
   }catch(e){toast('Schedule failed: '+e.message,'err');}
 }
 var _logCache=null; // cached log HTML
+var _loggedMeetings={}; // key: "date|title" → true, for coloring calendar cards
 
 async function loadLog(forceRefresh){
   if(!forceRefresh&&_logCache!==null){
@@ -2094,6 +2075,12 @@ async function loadLog(forceRefresh){
   try{
     var d=await getRange(LOG_TAB);
     var rows=(d.values||[]).slice(1).filter(function(r){return r[0];});
+    // Build logged meetings index: "date|meetingTitle" → true
+    _loggedMeetings={};
+    rows.forEach(function(r){
+      var key=(r[0]||'')+'|'+(r[4]||'');
+      if(key!=='|')_loggedMeetings[key]=true;
+    });
     var el=document.getElementById('meet-log');
     if(!rows.length){
       _logCache='<div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div>';
