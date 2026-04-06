@@ -402,74 +402,8 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
 </div>
 
 <!-- MODALS -->
-<div class="overlay" id="edit-modal">
-  <div class="modal">
-    <div class="modal-hdr"><div class="modal-title" id="edit-title">Add Project</div><button class="modal-x" onclick="closeModal('edit-modal')">&#10005;</button></div>
-    <div id="edit-form" class="grid2"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-outline" onclick="closeModal('edit-modal')">Cancel</button>
-      <button class="btn btn-red" id="edit-save-btn" onclick="saveProj()"><span id="save-spin" style="display:none;" class="spin"></span> Save to Sheet</button>
-    </div>
-  </div>
-</div>
 
-<!-- New Item Type Selector Modal -->
-<div class="overlay" id="new-modal">
-  <div class="modal modal-narrow">
-    <div class="modal-hdr"><div class="modal-title" id="new-modal-title">New Item</div><button class="modal-x" onclick="closeModal('new-modal')">&#10005;</button></div>
-    <div id="new-form"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-outline" onclick="closeModal('new-modal')">Cancel</button>
-      <button class="btn" id="new-save-btn" onclick="saveNewItem()"><span id="new-spin" style="display:none;" class="spin"></span> Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- Transcript Import Modal -->
-<div class="overlay" id="transcript-modal">
-  <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-title">Import Meeting Transcript</div>
-      <button class="modal-x" onclick="closeModal('transcript-modal')">&#10005;</button>
-    </div>
-    <div style="background:var(--dark);border-radius:4px;padding:12px 14px;margin-bottom:18px;">
-      <div id="tx-meeting-title" style="color:var(--light);font-weight:700;font-size:13px;"></div>
-      <div id="tx-meeting-meta" style="color:var(--mid);font-size:11px;margin-top:3px;"></div>
-    </div>
-    <div class="field">
-      <label>SEARCH GOOGLE DRIVE FOR TRANSCRIPT</label>
-      <div style="display:flex;gap:8px;">
-        <input id="tx-search" type="text" placeholder="Search by meeting name..." style="flex:1;border:1px solid var(--lg);border-radius:3px;padding:7px 10px;font-size:12px;font-family:'Montserrat',Arial,sans-serif;"/>
-        <button class="btn btn-dark" onclick="searchTranscripts()"><span id="tx-search-spin" style="display:none;" class="spin spin-dark"></span> &#128269; Search Drive</button>
-      </div>
-    </div>
-    <div id="tx-results" style="margin-bottom:14px;max-height:180px;overflow-y:auto;"></div>
-    <div style="margin-bottom:14px;">
-      <button onclick="document.getElementById('tx-paste-section').style.display='block';this.style.display='none';" class="btn btn-outline" style="font-size:11px;width:100%;">&#9998; Paste transcript manually instead</button>
-    </div>
-    <div class="field" id="tx-paste-section" style="display:none;">
-      <label>PASTE TRANSCRIPT TEXT</label>
-      <textarea id="tx-text" rows="6" placeholder="Paste transcript text here..."></textarea>
-      <button class="btn btn-dark" style="margin-top:8px;width:100%;" onclick="extractFromPaste()"><span id="tx-paste-spin" style="display:none;" class="spin spin-dark"></span> &#128161; Extract with Claude</button>
-    </div>
-    <div id="tx-extracted" style="display:none;background:#f0fdf4;border:1px solid #22c55e44;border-left:3px solid var(--green);border-radius:4px;padding:14px;margin-bottom:14px;">
-      <div style="font-weight:800;font-size:11px;color:var(--green);letter-spacing:.08em;margin-bottom:12px;">&#10003; EXTRACTED FROM TRANSCRIPT</div>
-      <div class="field"><label>STATUS UPDATE</label>
-        <select id="tx-status"><option value="">&#8212; No change &#8212;</option><option>Not Started</option><option>In Progress</option><option>Done</option><option>Blocked</option><option>Pending Review</option><option>Delayed</option></select>
-      </div>
-      <div class="field"><label>NEXT STEPS</label><textarea id="tx-next" rows="3"></textarea></div>
-      <div class="field"><label>MANAGER UPDATE NOTE</label><textarea id="tx-note" rows="3"></textarea></div>
-      <div class="field"><label>ACTION ITEMS IDENTIFIED</label><textarea id="tx-actions" rows="3" style="background:#f9f9f9;color:#555;" readonly></textarea></div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">
-      <button class="btn btn-outline" onclick="closeModal('transcript-modal')">Cancel</button>
-      <button class="btn btn-red" id="tx-save-btn" style="display:none;" onclick="saveTranscriptFU()"><span id="tx-save-spin" style="display:none;" class="spin"></span> Save &amp; Log</button>
-    </div>
-  </div>
-</div>
-
-</div>
-
+<!-- Follow-Up / Log Modal -->
 <div class="overlay" id="fu-modal">
   <div class="modal">
     <div class="modal-hdr"><div class="modal-title">Meeting Follow-Up</div><button class="modal-x" onclick="closeModal('fu-modal')">&#10005;</button></div>
@@ -498,92 +432,9 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
   </div>
 </div>
 
-<div class="overlay" id="comp-modal">
-  <div class="modal modal-wide">
-    <div class="modal-hdr"><div class="modal-title">Completed Projects</div><button class="modal-x" onclick="closeModal('comp-modal')">&#10005;</button></div>
-    <p style="color:var(--mid);font-size:12px;margin-bottom:16px;">These feed into your bonus discussion reports automatically.</p>
-    <div id="comp-tbl"></div>
-  </div>
+<div class="overlay" id="fu-modal-na" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:400;align-items:center;justify-content:center;">
 </div>
 
-<div class="overlay" id="email-modal">
-  <div class="modal modal-narrow">
-    <div class="modal-hdr"><div class="modal-title">Settings</div><button class="modal-x" onclick="closeModal('email-modal')">&#10005;</button></div>
-    
-    <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mid);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--lg);">MANAGER EMAILS</div>
-    <p style="color:var(--mid);font-size:12px;margin-bottom:14px;">Used to send reports via Gmail. Saved in your browser.</p>
-    <div class="field"><label>DANIEL</label><input id="em-d" type="email" placeholder="daniel@londonuw.com"/></div>
-    <div class="field"><label>HEDA</label><input id="em-h" type="email" placeholder="heda@londonuw.com"/></div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:20px;"><button class="btn btn-red" onclick="saveEmails()">Save Emails</button></div>
-    
-    <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mid);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--lg);">ANTHROPIC API KEY</div>
-    <p style="color:var(--mid);font-size:12px;margin-bottom:14px;">Required for AI features (report polish, transcript extraction). Saved in your browser only.</p>
-    <div class="field"><label>API KEY</label>
-      <input id="settings-apikey" type="password" placeholder="sk-ant-api03-..." style="font-family:monospace;"/>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-outline" style="font-size:11px;color:var(--red);border-color:var(--red);" onclick="clearApiKey()">Remove Key</button>
-      <button class="btn btn-red" onclick="updateApiKey()">Save Key</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-
-
-<!-- AUTH -->
-<div id="auth-screen">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:36px;">
-    <div style="width:5px;height:30px;background:var(--red);border-radius:2px;"></div>
-    <div><div style="color:var(--light);font-weight:900;font-size:18px;letter-spacing:.1em;">LONDON UNDERWRITERS</div><div style="color:var(--mid);font-size:10px;letter-spacing:.18em;margin-top:2px;">WEEKLY OPERATIONS HUB</div></div>
-  </div>
-  <div class="auth-card">
-    <div style="color:var(--light);font-weight:700;font-size:16px;margin-bottom:8px;">Connect Your Google Sheet</div>
-    <div style="color:var(--mid);font-size:12px;line-height:1.7;margin-bottom:28px;">Sign in with Google to sync your project tracker live.</div>
-    <div id="auth-err" style="display:none;background:#2a0a0a;border:1px solid rgba(236,28,36,.3);border-radius:4px;padding:10px 14px;color:var(--red);font-size:11px;margin-bottom:18px;text-align:left;"></div>
-    <button id="signin-btn" onclick="doSignIn()" style="background:#fff;color:#191818;border:none;border-radius:4px;padding:12px 24px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:10px;font-family:'Montserrat',Arial,sans-serif;">
-      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-      Sign in with Google
-    </button>
-    <div style="color:#333;font-size:10px;margin-top:14px;">Requires access to the LU Claude Tracker sheet</div>
-  </div>
-</div>
-
-<!-- APP -->
-<!-- API KEY SCREEN -->
-<div id="apikey-screen" style="display:none;min-height:100vh;background:var(--dark);flex-direction:column;align-items:center;justify-content:center;padding:24px;">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:36px;">
-    <div style="width:5px;height:30px;background:var(--red);border-radius:2px;"></div>
-    <div>
-      <div style="color:var(--light);font-weight:900;font-size:18px;letter-spacing:.1em;">LONDON UNDERWRITERS</div>
-      <div style="color:var(--mid);font-size:10px;letter-spacing:.18em;margin-top:2px;">WEEKLY OPERATIONS HUB</div>
-    </div>
-  </div>
-  <div style="background:#111;border:1px solid #2a2a2a;border-top:3px solid var(--red);border-radius:6px;padding:36px;max-width:440px;width:100%;animation:fadeUp .5s ease;">
-    <div style="color:var(--light);font-weight:700;font-size:16px;margin-bottom:8px;">One Last Step</div>
-    <div style="color:var(--mid);font-size:12px;line-height:1.7;margin-bottom:6px;">Enter your Anthropic API key to enable AI features (report polish, transcript extraction, gap analysis).</div>
-    <div style="color:#555;font-size:11px;margin-bottom:24px;">This is saved only in your browser — never stored online.</div>
-    <div id="apikey-err" style="display:none;background:#2a0a0a;border:1px solid rgba(236,28,36,.3);border-radius:4px;padding:10px 14px;color:var(--red);font-size:11px;margin-bottom:14px;"></div>
-    <label style="display:block;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mid);margin-bottom:6px;">ANTHROPIC API KEY</label>
-    <input id="apikey-input" type="password" placeholder="sk-ant-api03-..." 
-      style="width:100%;border:1px solid #333;border-radius:3px;padding:10px 12px;font-size:12px;font-family:'Montserrat',Arial,sans-serif;background:#1a1a1a;color:var(--light);margin-bottom:16px;"
-      onkeydown="if(event.key==='Enter')saveApiKey();"/>
-    <div style="display:flex;gap:10px;">
-      <button onclick="saveApiKey()" style="flex:1;background:var(--red);color:var(--light);border:none;border-radius:4px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:'Montserrat',Arial,sans-serif;">
-        Save &amp; Continue
-      </button>
-      <button onclick="skipApiKey()" style="background:transparent;color:var(--mid);border:1px solid #333;border-radius:4px;padding:11px 16px;font-weight:700;font-size:12px;cursor:pointer;font-family:'Montserrat',Arial,sans-serif;" title="Skip — AI features will be disabled">
-        Skip
-      </button>
-    </div>
-    <div style="color:#444;font-size:10px;margin-top:14px;text-align:center;">
-      Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:#555;">console.anthropic.com</a> &rarr; API Keys
-    </div>
-  </div>
-</div>
-
-<!-- MODALS -->
 <div class="overlay" id="edit-modal">
   <div class="modal">
     <div class="modal-hdr"><div class="modal-title" id="edit-title">Add Project</div><button class="modal-x" onclick="closeModal('edit-modal')">&#10005;</button></div>
@@ -1496,20 +1347,29 @@ function renderCal(){
         var fuIdx=fuEvents.findIndex(function(f){return f.id===e.id;});
         var fu=fuEvents[fuIdx];
         var proj=fu?(fu.manualProject||fu.project):null;
+        var isNA=fu&&(fu._na||( proj&&proj._na));
         var isPast=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'))<=now;
         var isLogged=!!_loggedMeetings[e.date+'|'+e.title];
-        var borderColor=isLogged?'var(--green)':isPast?'var(--amber)':'var(--red)';
+        var borderColor=isNA?'#444':isLogged?'var(--green)':isPast?'var(--amber)':'var(--red)';
 
         gridHtml+='<div style="background:var(--dark);border-left:3px solid '+borderColor+';border-radius:3px;padding:8px 10px;margin-bottom:6px;'+(isLogged?'opacity:0.85;':'')+'}">';
         gridHtml+='<div style="display:flex;align-items:center;gap:4px;">';
         if(isLogged)gridHtml+='<span style="color:var(--green);font-size:9px;font-weight:800;">✓</span>';
-        gridHtml+='<div style="color:var(--light);font-weight:700;font-size:11px;line-height:1.3;flex:1;">'+esc(e.title)+'</div>';
+        gridHtml+='<div style="color:'+(isNA?'#666':'var(--light)')+';font-weight:700;font-size:11px;line-height:1.3;flex:1;">'+esc(e.title)+'</div>';
         gridHtml+='</div>';
         gridHtml+='<div style="color:var(--mid);font-size:10px;margin-top:3px;">'+esc(e.startTime+(e.endTime?' – '+e.endTime:'')+(e.duration?' ('+e.duration+')':''))+'</div>';
         if(e.attendees&&e.attendees.length){
           gridHtml+='<div style="color:#888;font-size:10px;margin-top:3px;line-height:1.3;">'+esc(e.attendees.join(', '))+'</div>';
         }
-        if(proj){
+        if(isNA){
+          // N/A meeting: gray badge + change dropdown
+          gridHtml+='<div id="cal-card-'+fuIdx+'" style="margin-top:5px;">';
+          gridHtml+='<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">';
+          gridHtml+='<span style="background:#2a2a2a;color:#666;border:1px solid #444;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;">— Not Applicable —</span>';
+          gridHtml+='</div>';
+          gridHtml+=buildChangeDropdown(fuIdx,active,'__NA__',nk,mgrK,statK);
+          gridHtml+='</div>';
+        }else if(proj){
           var mc=MC[proj[mgrK]]||'#b0aea5';
           // Linked meeting: show badge + action buttons + a "Change" dropdown
           gridHtml+='<div id="cal-card-'+fuIdx+'" style="margin-top:5px;">';
@@ -1528,6 +1388,7 @@ function renderCal(){
           gridHtml+='<div id="cal-card-'+fuIdx+'" style="margin-top:5px;">';
           gridHtml+='<select onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid rgba(245,158,11,.5);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#1a1200;color:#f59e0b;">';
           gridHtml+='<option value="">⬡ Link to project…</option>';
+          gridHtml+='<option value="__NA__" style="color:#888;">— Not Applicable —</option>';
           active.forEach(function(p){
             var mgr=mgrK?p[mgrK]:'';
             var pname=nk?p[nk]:'';
@@ -1945,6 +1806,7 @@ function renderFU(){
 function buildChangeDropdown(fuIdx, active, currentName, nk, mgrK, statK){
   var html='<select onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid #333;border-radius:3px;padding:3px 4px;font-size:9px;font-family:Montserrat,Arial,sans-serif;background:#2a2a2a;color:#888;">';
   html+='<option value="">↺ Change project…</option>';
+  html+='<option value="__NA__" style="color:#888;"'+(currentName==='__NA__'?' selected':'')+'>— Not Applicable —</option>';
   active.forEach(function(ap){
     var mgr=mgrK?ap[mgrK]:'';
     var pname=nk?ap[nk]:'';
@@ -1963,16 +1825,30 @@ function linkFUFromSel(fuIdx, selEl){
   var nk=K(/^project.?name$/i)||K(/^project$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var mgrK=K(/manager/i),statK=K(/status/i);
   var active=projects.filter(function(p){return p[nk];});
-  // val is now the project NAME — find by name, not fragile index
+  var card=document.getElementById('cal-card-'+fuIdx);
+
+  // N/A selected — mark meeting as not applicable
+  if(val==='__NA__'){
+    fuEvents[fuIdx].manualProject={_na:true};
+    fuEvents[fuIdx]._na=true;
+    saveMeetingLink(fuEvents[fuIdx],'__NA__').catch(function(){});
+    if(card){
+      card.innerHTML=
+        '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'+
+        '<span style="background:#2a2a2a;color:#666;border:1px solid #444;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;">— Not Applicable —</span>'+
+        '</div>'+buildChangeDropdown(fuIdx,active,'__NA__',nk,mgrK,statK);
+    }
+    toast('Marked as Not Applicable');
+    return;
+  }
+
   var p=active.find(function(proj){return proj[nk]===val;});
   if(!p) return;
 
-  // Update the data — set manualProject, keep auto project intact for fallback
   fuEvents[fuIdx].manualProject=p;
+  fuEvents[fuIdx]._na=false;
   saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
 
-  // Update the card in-place
-  var card=document.getElementById('cal-card-'+fuIdx);
   if(card){
     var mc=MC[p[mgrK]]||'#b0aea5';
     var isPast=new Date(fuEvents[fuIdx].date+(fuEvents[fuIdx].startTime&&fuEvents[fuIdx].startTime!=='All day'?'T'+fuEvents[fuIdx].startTime+':00':'T00:00'))<=new Date();
@@ -1983,7 +1859,7 @@ function linkFUFromSel(fuIdx, selEl){
       html+='<button onclick="openTranscriptModal('+fuIdx+')" title="Import transcript" style="background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:9px;cursor:pointer;font-family:Montserrat,Arial,sans-serif;">🎤</button>';
     }
     html+='</div>';
-    html+=buildChangeDropdown(fuIdx, active, p[nk], nk, mgrK, statK);
+    html+=buildChangeDropdown(fuIdx,active,p[nk],nk,mgrK,statK);
     card.innerHTML=html;
   }
   toast('Linked: '+p[nk]);
@@ -2172,8 +2048,8 @@ function switchTab(name){
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function setSyncing(v){document.getElementById('sync-ind').style.display=v?'flex':'none';}
-function showSp(id){document.getElementById(id).style.display='inline-block';}
-function hideSp(id){document.getElementById(id).style.display='none';}
+function showSp(id){var el=document.getElementById(id);if(el)el.style.display='inline-block';}
+function hideSp(id){var el=document.getElementById(id);if(el)el.style.display='none';}
 var toastT;
 function toast(msg,type){
   var el=document.getElementById('toast');el.textContent=msg;
