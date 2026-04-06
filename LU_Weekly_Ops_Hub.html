@@ -1535,27 +1535,32 @@ function renderCal(){
         }
         if(proj){
           var mc=MC[proj[mgrK]]||'#b0aea5';
-          gridHtml+='<div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:6px;">';
-          gridHtml+='<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">'+esc(proj[nk])+'</span>';
+          // Linked meeting: show badge + action buttons + a "Change" dropdown
+          gridHtml+='<div id="cal-card-'+fuIdx+'" style="margin-top:5px;">';
+          gridHtml+='<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">';
+          gridHtml+='<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="'+esc(proj[nk])+'">'+esc(proj[nk])+'</span>';
           if(isPast){
-            gridHtml+='<button onclick="openFUModal('+fuIdx+')" style="background:var(--amber);color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">+ LOG</button>';
-            gridHtml+='<button onclick="openTranscriptModal('+fuIdx+')" title="Import transcript" style="background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">&#127908;</button>';
+            gridHtml+='<button onclick="openFUModal('+fuIdx+')" style="background:var(--amber);color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">LOG</button>';
+            gridHtml+='<button onclick="openTranscriptModal('+fuIdx+')" title="Import transcript" style="background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:9px;cursor:pointer;font-family:Montserrat,Arial,sans-serif;">🎤</button>';
           }
           gridHtml+='</div>';
+          // Always show a "Change project" dropdown for any linked meeting
+          gridHtml+=buildChangeDropdown(fuIdx,active,proj[nk],nk,mgrK,statK);
+          gridHtml+='</div>';
         }else if(fuIdx>=0){
-          // Show a proper "Link" button that opens a modal-style picker instead of a cramped inline dropdown
-          gridHtml+='<div style="margin-top:5px;">';
-          gridHtml+='<select id="linksel-'+fuIdx+'" onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#1a1200;color:#f59e0b;">';
+          // Unlinked meeting: show project picker dropdown
+          gridHtml+='<div id="cal-card-'+fuIdx+'" style="margin-top:5px;">';
+          gridHtml+='<select onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid rgba(245,158,11,.5);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#1a1200;color:#f59e0b;">';
           gridHtml+='<option value="">⬡ Link to project…</option>';
-          active.forEach(function(p,pi){
+          active.forEach(function(p){
             var mgr=mgrK?p[mgrK]:'';
             var pname=nk?p[nk]:'';
             var stat=statK?p[statK]:'';
             var label=pname+(mgr?' ['+mgr[0]+']':'')+(stat&&stat!=='Not Started'?' · '+stat:'');
-            gridHtml+='<option value="'+pi+'">'+esc(label)+'</option>';
+            gridHtml+='<option value="'+esc(pname)+'">'+esc(label)+'</option>';
           });
-          gridHtml+='</select></div>';
-        }
+          gridHtml+='</select>';
+          gridHtml+='</div>';
         gridHtml+='</div>'; // card
       });
     }
@@ -1846,12 +1851,12 @@ function renderFU(){
       var sel=document.createElement('select');
       sel.style.cssText='width:100%;border:1px solid var(--lg);border-radius:3px;padding:6px 8px;font-size:12px;font-family:Montserrat,Arial,sans-serif;background:#fff;color:#191818;';
       var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Select project to link —';sel.appendChild(defOpt);
-      active.forEach(function(p,pi){
+      active.forEach(function(p){
         var mgr=mgrK?p[mgrK]:'';
         var pname=nk?p[nk]:'';
         var stat=statK?p[statK]:'';
         var label=pname+(mgr?' ['+mgr[0]+']':'')+(stat&&stat!=='Not Started'?' · '+stat:'');
-        var opt=document.createElement('option');opt.value=String(pi);opt.textContent=label;sel.appendChild(opt);
+        var opt=document.createElement('option');opt.value=pname;opt.textContent=label;sel.appendChild(opt);
       });
       sel.addEventListener('change',(function(fi,cellEl){return function(){
         if(!this.value)return;
@@ -1960,29 +1965,51 @@ function renderFU(){
   }else{ovEl.style.display='none';}
 }
 
+function buildChangeDropdown(fuIdx, active, currentName, nk, mgrK, statK){
+  var html='<select onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid #333;border-radius:3px;padding:3px 4px;font-size:9px;font-family:Montserrat,Arial,sans-serif;background:#2a2a2a;color:#888;">';
+  html+='<option value="">↺ Change project…</option>';
+  active.forEach(function(ap){
+    var mgr=mgrK?ap[mgrK]:'';
+    var pname=nk?ap[nk]:'';
+    var stat=statK?ap[statK]:'';
+    var isCurrent=(pname===currentName);
+    var lbl=(isCurrent?'✓ ':'')+pname+(mgr?' ['+mgr[0]+']':'')+(stat&&stat!=='Not Started'?' · '+stat:'');
+    html+='<option value="'+esc(pname)+'"'+(isCurrent?' style="font-weight:700;"':'')+'>'+esc(lbl)+'</option>';
+  });
+  html+='</select>';
+  return html;
+}
+
 function linkFUFromSel(fuIdx, selEl){
   var val = selEl.value;
   if(!val) return;
-  var projIdx = parseInt(val);
   var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
-  var mgrK=K(/manager/i);
+  var mgrK=K(/manager/i),statK=K(/status/i);
   var active=projects.filter(function(p){return p[nk];});
-  var p=active[projIdx];
+  // val is now the project NAME — find by name, not fragile index
+  var p=active.find(function(proj){return proj[nk]===val;});
   if(!p) return;
 
-  // Link the event
+  // Update the data
   fuEvents[fuIdx].manualProject=p;
+  fuEvents[fuIdx].project=null;
   saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
 
-  // Update the card in-place instead of re-rendering the whole calendar
-  var mc=MC[p[mgrK]]||'#b0aea5';
-  var container=selEl.parentElement;
-  container.innerHTML=
-    '<div style="display:flex;align-items:center;gap:4px;margin-top:5px;">'+
-    '<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="'+p[nk]+'">'+p[nk]+'</span>'+
-    '<button onclick="_unlinkFU('+fuIdx+',this)" style="background:transparent;color:#888;border:none;font-size:11px;cursor:pointer;padding:0 2px;" title="Unlink">✕</button>'+
-    '</div>';
-
+  // Update the card in-place
+  var card=document.getElementById('cal-card-'+fuIdx);
+  if(card){
+    var mc=MC[p[mgrK]]||'#b0aea5';
+    var isPast=new Date(fuEvents[fuIdx].date+(fuEvents[fuIdx].startTime&&fuEvents[fuIdx].startTime!=='All day'?'T'+fuEvents[fuIdx].startTime+':00':'T00:00'))<=new Date();
+    var html='<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">';
+    html+='<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="'+p[nk]+'">'+p[nk]+'</span>';
+    if(isPast){
+      html+='<button onclick="openFUModal('+fuIdx+')" style="background:var(--amber);color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">LOG</button>';
+      html+='<button onclick="openTranscriptModal('+fuIdx+')" title="Import transcript" style="background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:9px;cursor:pointer;font-family:Montserrat,Arial,sans-serif;">🎤</button>';
+    }
+    html+='</div>';
+    html+=buildChangeDropdown(fuIdx, active, p[nk], nk, mgrK, statK);
+    card.innerHTML=html;
+  }
   toast('Linked: '+p[nk]);
 }
 
