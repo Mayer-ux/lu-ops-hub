@@ -1691,7 +1691,9 @@ async function syncCal(){
   }catch(e){toast('Calendar error: '+e.message,'err');}
   hideSp('cal-spin');
 }
+var _renderCalBusy=false;
 function renderCal(){
+  if(_renderCalBusy)return;
   var el=document.getElementById('cal-list');
   var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var mgrK=K(/manager/i),statK=K(/status/i),dueK=K(/due.?date/i),entK=K(/entity/i);
@@ -1704,7 +1706,7 @@ function renderCal(){
     return;
   }
 
-  // Build fuEvents — auto-match then restore persisted links
+  // Build fuEvents — auto-match
   fuEvents=calEvents.map(function(e){
     var tl=e.title.toLowerCase();
     var tag=e.title.match(/\[([^\]]+)\]/);
@@ -1716,18 +1718,17 @@ function renderCal(){
     });
     return Object.assign({},e,{project:matched||null,manualProject:null});
   });
-  // Restore persisted manual links from sheet — update in place, re-render only if something changed
-  var _renderCalInProgress=false;
+
+  // Restore persisted manual links — async, re-render once if anything changed
   loadMeetingLinks().then(function(linkMap){
-    if(_renderCalInProgress)return;
     var changed=false;
     fuEvents.forEach(function(fe){
       if(!fe.project&&!fe.manualProject&&linkMap[fe.id]){
-        var p=active.find(function(p){return p[nk]===linkMap[fe.id];});
+        var p=active.find(function(x){return x[nk]===linkMap[fe.id];});
         if(p){fe.manualProject=p;changed=true;}
       }
     });
-    if(changed){_renderCalInProgress=true;renderCal();_renderCalInProgress=false;}
+    if(changed){_renderCalBusy=false;renderCal();}
   });
 
   var today=new Date();
@@ -1752,9 +1753,9 @@ function renderCal(){
     else unmatched.push(e);
   });
 
-  // Build weekly grid
-  var gridDiv=document.createElement('div');
-  gridDiv.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:10px;';
+  // Build entire grid as one HTML string — single innerHTML write instead of hundreds of createElement calls
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  var gridHtml='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">';
 
   dayDates.forEach(function(dayDate,di){
     var dateStr=dayDate.toISOString().slice(0,10);
@@ -1763,100 +1764,58 @@ function renderCal(){
     var dayNum=dayDate.toLocaleDateString('en-US',{day:'numeric'});
     var dayMon=dayDate.toLocaleDateString('en-US',{month:'short'});
 
-    var col=document.createElement('div');
-    col.style.cssText='background:#fff;border:1px solid var(--lg);border-radius:6px;overflow:hidden;min-height:200px;';
+    gridHtml+='<div style="background:#fff;border:1px solid var(--lg);border-radius:6px;overflow:hidden;min-height:200px;">';
+    gridHtml+='<div style="background:'+(isToday?'var(--red)':'var(--dark)')+';padding:10px 12px;">';
+    gridHtml+='<div style="color:var(--light);font-weight:800;font-size:12px;letter-spacing:.06em;">'+days[di].toUpperCase()+'</div>';
+    gridHtml+='<div style="color:'+(isToday?'rgba(255,255,255,.8)':'var(--mid)')+';font-size:11px;margin-top:1px;">'+dayMon+' '+dayNum+'</div></div>';
+    gridHtml+='<div style="padding:8px;">';
 
-    // Header
-    var hdr=document.createElement('div');
-    hdr.style.cssText='background:'+(isToday?'var(--red)':'var(--dark)')+';padding:10px 12px;';
-    hdr.innerHTML='<div style="color:var(--light);font-weight:800;font-size:12px;letter-spacing:.06em;">'+days[di].toUpperCase()+'</div>'+
-      '<div style="color:'+(isToday?'rgba(255,255,255,.8)':'var(--mid)')+';font-size:11px;margin-top:1px;">'+dayMon+' '+dayNum+'</div>';
-    col.appendChild(hdr);
-
-    // Events
-    var body=document.createElement('div');
-    body.style.padding='8px';
     if(!dayEvents.length){
-      var empty=document.createElement('div');
-      empty.style.cssText='color:#bbb;font-size:11px;padding:8px 4px;font-style:italic;';
-      empty.textContent='No meetings';
-      body.appendChild(empty);
+      gridHtml+='<div style="color:#bbb;font-size:11px;padding:8px 4px;font-style:italic;">No meetings</div>';
     }else{
       dayEvents.forEach(function(e){
         var fuIdx=fuEvents.findIndex(function(f){return f.id===e.id;});
         var fu=fuEvents[fuIdx];
         var proj=fu?(fu.project||fu.manualProject):null;
         var isPast=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'))<=now;
+        var borderColor=isPast?'var(--amber)':'var(--red)';
 
-        var card=document.createElement('div');
-        card.style.cssText='background:var(--dark);border-left:3px solid '+(isPast?'var(--amber)':'var(--red)')+';border-radius:3px;padding:8px 10px;margin-bottom:6px;';
-
-        var titleDiv=document.createElement('div');
-        titleDiv.style.cssText='color:var(--light);font-weight:700;font-size:11px;line-height:1.3;';
-        titleDiv.textContent=e.title;
-        card.appendChild(titleDiv);
-
-        var timeDiv=document.createElement('div');
-        timeDiv.style.cssText='color:var(--mid);font-size:10px;margin-top:3px;';
-        timeDiv.textContent=e.startTime+(e.endTime?' – '+e.endTime:'')+(e.duration?' ('+e.duration+')':'');
-        card.appendChild(timeDiv);
-
+        gridHtml+='<div style="background:var(--dark);border-left:3px solid '+borderColor+';border-radius:3px;padding:8px 10px;margin-bottom:6px;">';
+        gridHtml+='<div style="color:var(--light);font-weight:700;font-size:11px;line-height:1.3;">'+esc(e.title)+'</div>';
+        gridHtml+='<div style="color:var(--mid);font-size:10px;margin-top:3px;">'+esc(e.startTime+(e.endTime?' – '+e.endTime:'')+(e.duration?' ('+e.duration+')':''))+'</div>';
         if(e.attendees&&e.attendees.length){
-          var attDiv=document.createElement('div');
-          attDiv.style.cssText='color:#888;font-size:10px;margin-top:3px;line-height:1.3;';
-          attDiv.textContent=e.attendees.join(', ');
-          card.appendChild(attDiv);
+          gridHtml+='<div style="color:#888;font-size:10px;margin-top:3px;line-height:1.3;">'+esc(e.attendees.join(', '))+'</div>';
         }
-
-        // Project badge if matched
         if(proj){
           var mc=MC[proj[mgrK]]||'#b0aea5';
-          var projDiv=document.createElement('div');
-          projDiv.style.cssText='margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:6px;';
-          var badge=document.createElement('span');
-          badge.style.cssText='background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
-          badge.textContent=proj[nk];
-          projDiv.appendChild(badge);
+          gridHtml+='<div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:6px;">';
+          gridHtml+='<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">'+esc(proj[nk])+'</span>';
           if(isPast){
-            var logBtn=document.createElement('button');
-            logBtn.style.cssText='background:var(--amber);color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;';
-            logBtn.textContent='+ LOG';
-            logBtn.addEventListener('click',(function(i){return function(){openFUModal(i);};})(fuIdx));
-            projDiv.appendChild(logBtn);
-            var txBtn=document.createElement('button');
-            txBtn.style.cssText='background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;';
-            txBtn.textContent='&#127908;';
-            txBtn.title='Import transcript';
-            txBtn.addEventListener('click',(function(i){return function(){openTranscriptModal(i);};})(fuIdx));
-            projDiv.appendChild(txBtn);
+            gridHtml+='<button onclick="openFUModal('+fuIdx+')" style="background:var(--amber);color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">+ LOG</button>';
+            gridHtml+='<button onclick="openTranscriptModal('+fuIdx+')" title="Import transcript" style="background:#8b5cf6;color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Montserrat,Arial,sans-serif;">&#127908;</button>';
           }
-          card.appendChild(projDiv);
+          gridHtml+='</div>';
         }else if(fuIdx>=0){
-          // Unmatched event - show inline link dropdown on all days
-          var linkDiv=document.createElement('div');
-          linkDiv.style.marginTop='5px';
-          var sel=document.createElement('select');
-          sel.style.cssText='width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#222;color:#f59e0b;';
-          var def=document.createElement('option');def.value='';def.textContent='Link to project...';sel.appendChild(def);
-          active.forEach(function(p,pi){sel.appendChild(buildProjOption(p,pi));});
-          sel.addEventListener('change',(function(fi){return function(){if(this.value!==''){linkFU(fi,parseInt(this.value));renderCal();}};})(fuIdx));
-          linkDiv.appendChild(sel);
-          card.appendChild(linkDiv);
+          gridHtml+='<div style="margin-top:5px;"><select onchange="if(this.value){linkFU('+fuIdx+',parseInt(this.value));this.value=\'\';renderCal();}" style="width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#222;color:#f59e0b;">';
+          gridHtml+='<option value="">Link to project...</option>';
+          active.forEach(function(p,pi){
+            var ent=entK?p[entK]:'',pname=nk?p[nk]:'',due=dueK?p[dueK]:'';
+            if(ent===pname)ent='';
+            var parts=[];if(ent)parts.push(ent);if(pname)parts.push(pname);parts.push(due||'TBD');
+            gridHtml+='<option value="'+pi+'">'+esc(parts.join(' | '))+'</option>';
+          });
+          gridHtml+='</select></div>';
         }
-
-        body.appendChild(card);
+        gridHtml+='</div>'; // card
       });
     }
-    col.appendChild(body);
-    gridDiv.appendChild(col);
+    gridHtml+='</div></div>'; // body + col
   });
+  gridHtml+='</div>'; // grid
 
-  el.innerHTML='';
-  el.appendChild(gridDiv);
+  // Single DOM write — prevents layout thrashing
+  el.innerHTML=gridHtml;
 
-
-
-  // Render follow-up panels below grid
   renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK);
   loadLog();
 }
