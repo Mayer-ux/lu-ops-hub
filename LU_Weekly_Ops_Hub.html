@@ -950,36 +950,44 @@ function clrRange(r){var q=quotedRange(r);return shReq('/values/'+encodeURICompo
 function rowToObj(hdrs,row,n){var o={_row:n};hdrs.forEach(function(h,i){o[h]=row[i]||'';});return o;}
 function objToRow(hdrs,obj){return hdrs.map(function(h){return obj[h]||'';});}
 
+// batchGet reads multiple sheet ranges in a SINGLE API call — reduces freeze count
+async function batchGetRanges(tabs){
+  if(!token){toast('Not signed in.','err');throw new Error('No token');}
+  if(Date.now()>tokenExpiry-30000&&tokenExpiry>0){try{await reAuth();}catch(e){}}
+  var ranges=tabs.map(function(t){return quotedRange(t);});
+  var qs=ranges.map(function(r){return 'ranges='+encodeURIComponent(r);}).join('&');
+  var r=await fetch(BASE+'/values:batchGet?'+qs,{headers:{Authorization:'Bearer '+token}});
+  if(r.status===401){token=null;toast('Session expired.','err');throw new Error('Unauthorized');}
+  var d=await r.json();
+  if(d.error)throw new Error(d.error.message);
+  return d.valueRanges||[];
+}
+
 async function fetchSheet(){
   setSyncing(true);
   try{
-    // Fetch both tabs in parallel
-    var results=await Promise.all([
-      getRange(CUR_TAB),
-      getRange(COMP_TAB).catch(function(){return null;})
-    ]);
-    // Parse immediately and null out raw responses to reduce GC pressure
-    var cur=results[0];results[0]=null;
-    var comp=results[1];results[1]=null;
-    results=null;
+    // ONE batchGet call instead of two separate getRange calls — single network freeze
+    var ranges=await batchGetRanges([CUR_TAB,COMP_TAB]);
+    var curVals=(ranges[0]&&ranges[0].values)||[];
+    var compVals=(ranges[1]&&ranges[1].values)||[];
+    ranges=null;
 
-    var rows=cur?cur.values||[]:[];cur=null;
-    if(rows.length){
-      headers=rows[0];
-      projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});
+    if(curVals.length){
+      headers=curVals[0];
+      projects=curVals.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});
     }
-    rows=null;
+    curVals=null;
 
-    if(comp){
-      var cr=comp.values||[];comp=null;
-      if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}
-      cr=null;
+    if(compVals.length){
+      compHdrs=compVals[0];
+      completed=compVals.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});
     }
+    compVals=null;
 
     renderTracker();
     var nk=compHdrs.find(function(h){return /name/i.test(h);})||'';
     document.getElementById('comp-count').textContent=completed.filter(function(p){return p[nk];}).length;
-    // Ensure persistence tabs exist — only once per session, deferred well after sync
+    // Ensure persistence tabs — only once per session, well deferred
     setTimeout(function(){ensureAllTabs();},8000);
   }catch(e){toast('Failed to load: '+e.message,'err');}
   setSyncing(false);
@@ -1392,9 +1400,9 @@ async function syncCal(){
   try{
     // Step 1: fetch calendar only — no other requests competing
     var today=new Date();
-    var mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);mon.setHours(0,0,0,0);
-    var sun=new Date(mon);sun.setDate(mon.getDate()+4);sun.setHours(23,59,59,999);
-    var url='https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+mon.toISOString()+'&timeMax='+sun.toISOString()+'&singleEvents=true&orderBy=startTime&maxResults=50';
+    var mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));mon.setHours(0,0,0,0);
+    var sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
+    var url='https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+mon.toISOString()+'&timeMax='+sun.toISOString()+'&singleEvents=true&orderBy=startTime&maxResults=250';
     var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
     var d=await res.json();
     if(d.error)throw new Error(d.error.message);
@@ -1471,7 +1479,7 @@ function renderCal(){
   });
 
   var today=new Date();
-  var mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);mon.setHours(0,0,0,0);
+  var mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));mon.setHours(0,0,0,0);
   var fri=new Date(mon);fri.setDate(mon.getDate()+4);
   var fmt={month:'short',day:'numeric'};
   document.getElementById('cal-week-label').textContent='Week of '+mon.toLocaleDateString('en-US',fmt)+' – '+fri.toLocaleDateString('en-US',fmt);
@@ -1587,8 +1595,13 @@ function renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK){
       var tdSel=document.createElement('td');tdSel.style.minWidth='280px';
       var sel=document.createElement('select');
       sel.style.cssText='width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:6px 8px;font-size:11px;font-family:Montserrat,Arial,sans-serif;background:#1a1500;color:#f59e0b;';
-      var def=document.createElement('option');def.value='';def.textContent='— Select project —';sel.appendChild(def);
-      active.forEach(function(p,pi){sel.appendChild(buildProjOption(p,pi));});
+      var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Select project —';sel.appendChild(defOpt);
+      active.forEach(function(p,pi){
+        var ent=entK?p[entK]:'',pname=nk?p[nk]:'',due=dueK?p[dueK]:'';
+        if(ent===pname)ent='';
+        var parts=[];if(ent)parts.push(ent);if(pname)parts.push(pname);parts.push(due||'TBD');
+        var opt=document.createElement('option');opt.value=String(pi);opt.textContent=parts.join(' | ');sel.appendChild(opt);
+      });
       sel.addEventListener('change',(function(fi){return function(){if(this.value!==''){linkFU(fi,parseInt(this.value));renderCal();}};})(idx));
       tdSel.appendChild(sel);tr.appendChild(tdSel);
       umBody.appendChild(tr);
