@@ -329,7 +329,7 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <div class="fu-section-title" style="margin-bottom:0;">Meeting Log History</div>
-          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog(true)">onclick="loadLog()">&#8635; REFRESH#8635; REFRESH</button>
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog(true)">&#8635; REFRESH</button>
         </div>
         <div id="meet-log"><div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div></div>
       </div>
@@ -724,155 +724,6 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
     </div>
     <div style="color:#444;font-size:10px;margin-top:14px;text-align:center;">
       Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:#555;">console.anthropic.com</a> &rarr; API Keys
-    </div>
-  </div>
-</div>
-
-<div id="app" style="display:none;">
-  <div id="header">
-    <div class="logo"><div class="logo-bar"></div><div><div class="logo-main">LONDON UNDERWRITERS</div><div class="logo-sub">WEEKLY OPERATIONS HUB</div></div></div>
-    <div class="hdr-right">
-      <span id="sync-ind" style="display:none;color:var(--mid);font-size:11px;"><span class="spin spin-dark"></span> syncing</span>
-      <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="fetchSheet()">&#8635; REFRESH</button>
-      <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="openModal('email-modal')">&#9881; EMAILS</button>
-      <button class="btn" style="background:transparent;color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:11px;padding:5px 12px;" onclick="openCompModal()">&#10003; COMPLETED (<span id="comp-count">0</span>)</button>
-      <div class="live-dot"></div>
-    </div>
-  </div>
-  <div id="tabs">
-    <button class="tab active" data-tab="tracker" onclick="switchTab('tracker')">PROJECT TRACKER</button>
-    <button class="tab" data-tab="calendar" onclick="switchTab('calendar')">CALENDAR</button>
-    <button class="tab" data-tab="report" onclick="switchTab('report')">WEEKLY REPORT</button>
-  </div>
-
-  <!-- Bottom nav for mobile -->
-  <div id="bottom-nav" style="display:none;">
-    <button class="bnav-btn active" id="bnav-tracker" onclick="switchTab('tracker')">
-      <span class="bnav-icon">&#128203;</span>TRACKER
-    </button>
-    <button class="bnav-btn" id="bnav-calendar" onclick="switchTab('calendar')">
-      <span class="bnav-icon">&#128197;</span>CALENDAR
-    </button>
-    <button class="bnav-btn" id="bnav-report" onclick="switchTab('report')">
-      <span class="bnav-icon">&#128221;</span>REPORT
-    </button>
-    <button class="bnav-btn" onclick="openModal('email-modal')">
-      <span class="bnav-icon">&#9881;</span>SETTINGS
-    </button>
-  </div>
-  <div id="main">
-
-    <!-- TRACKER -->
-    <div id="tab-tracker" class="fade-up">
-      <div class="sec-hdr">
-        <div><div class="sec-title">Project Tracker</div><div class="sec-sub">Live sync &middot; <span id="proj-count">0</span> projects &middot; <span id="todo-count">0</span> to-dos</div></div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-red" onclick="openNewModal('project')">+ PROJECT</button>
-          <button class="btn" style="background:#f59e0b;color:#fff;" onclick="openNewModal('todo')">+ TO-DO</button>
-          <button class="btn" style="background:#3b82f6;color:#fff;" onclick="openNewModal('meeting')">+ MEETING</button>
-        </div>
-      </div>
-
-      <!-- Inner tabs -->
-      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--lg);">
-        <button id="inner-tab-projects" onclick="switchInnerTab('projects')"
-          style="background:transparent;border:none;border-bottom:3px solid var(--red);padding:8px 20px;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:var(--dark);font-family:'Montserrat',Arial,sans-serif;margin-bottom:-2px;">
-          PROJECTS
-        </button>
-        <button id="inner-tab-todos" onclick="switchInnerTab('todos')"
-          style="background:transparent;border:none;border-bottom:3px solid transparent;padding:8px 20px;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;color:var(--mid);font-family:'Montserrat',Arial,sans-serif;margin-bottom:-2px;">
-          TO-DOS &amp; HIGHLIGHTS
-        </button>
-      </div>
-
-      <!-- Projects view -->
-      <div id="inner-view-projects">
-        <div style="overflow-x:auto;"><table class="tbl">
-          <thead><tr><th>Project</th><th>Manager</th><th>Entity</th><th>Priority</th><th>Status</th><th>Due</th><th>Bonus</th><th></th></tr></thead>
-          <tbody id="proj-tbody"><tr><td colspan="8"><div class="empty"><div class="empty-icon">&#9203;</div><div class="empty-title">Loading&hellip;</div></div></td></tr></tbody>
-        </table></div>
-      </div>
-
-      <!-- Todos view -->
-      <div id="inner-view-todos" style="display:none;">
-        <div style="overflow-x:auto;"><table class="tbl">
-          <thead><tr><th>To-Do</th><th>Type</th><th>Manager</th><th>Entity</th><th>Priority</th><th>Status</th><th>Due</th><th></th></tr></thead>
-          <tbody id="todo-tbody"><tr><td colspan="8"><div class="empty"><div class="empty-icon">&#9203;</div><div class="empty-title">Loading&hellip;</div></div></td></tr></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <!-- CALENDAR + FOLLOW-UP -->
-    <div id="tab-calendar" class="fade-up" style="display:none;">
-      <div class="sec-hdr">
-        <div><div class="sec-title">This Week</div><div class="sec-sub" id="cal-week-label">Live from Google Calendar</div></div>
-        <button class="btn btn-dark" onclick="syncCal()"><span id="cal-spin" style="display:none;" class="spin"></span> &#8635; SYNC</button>
-      </div>
-
-      <!-- Weekly grid -->
-      <div id="cal-list">
-        <div class="empty"><div class="empty-icon">&#128197;</div><div class="empty-title">Click Sync to load this week</div></div>
-      </div>
-
-      <!-- Unlinked meetings -->
-      <div id="fu-unmatched" style="display:none;margin-top:24px;">
-        <div style="background:#1f1a0a;border:1px solid rgba(245,158,11,.3);border-left:3px solid var(--amber);border-radius:4px;padding:14px 16px;">
-          <div style="color:var(--amber);font-weight:800;font-size:11px;letter-spacing:.1em;margin-bottom:12px;">&#9888; UNLINKED MEETINGS &mdash; assign each to a project</div>
-          <div style="overflow-x:auto;"><table class="tbl" style="background:transparent;">
-            <thead><tr>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">MEETING</th>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">DATE</th>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">TIME</th>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">DURATION</th>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">ATTENDEES</th>
-              <th style="color:#f59e0b;font-size:10px;letter-spacing:.08em;">LINK TO PROJECT</th>
-            </tr></thead>
-            <tbody id="fu-unmatched-body"></tbody>
-          </table></div>
-        </div>
-      </div>
-
-      <!-- No Activity -->
-      <div id="fu-no-activity" style="display:none;margin-top:24px;">
-        <div class="fu-section-title">&#9888; No Activity This Week</div>
-        <div class="fu-section-sub">These active projects have no calendar meetings this week.</div>
-        <div id="fu-no-act-list"></div>
-      </div>
-
-      <!-- Overdue -->
-      <div id="fu-overdue" style="display:none;margin-top:20px;">
-        <div class="fu-section-title">&#128308; Overdue Projects</div>
-        <div id="fu-ovr-list"></div>
-      </div>
-
-      <!-- Meeting Log -->
-      <div style="margin-top:28px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div class="fu-section-title" style="margin-bottom:0;">Meeting Log History</div>
-          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog(true)">onclick="loadLog()">&#8635; REFRESH#8635; REFRESH</button>
-        </div>
-        <div id="meet-log"><div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div></div>
-      </div>
-    </div>
-
-    
-    <!-- REPORT --><!-- REPORT -->
-    <div id="tab-report" class="fade-up" style="display:none;">
-      <div class="sec-hdr">
-        <div><div class="sec-title">Weekly Status Report</div><div class="sec-sub">Manager-specific &middot; includes meeting notes &middot; send via Gmail</div></div>
-        <button class="btn btn-dark" style="border:1px solid var(--red);" onclick="blastBoth()"><span id="blast-spin" style="display:none;" class="spin"></span> &#128640; BLAST BOTH</button>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
-        <span style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--mid);">FOR:</span>
-        <button class="pill active" id="pill-Daniel" onclick="setMgr('Daniel')">DANIEL</button>
-        <button class="pill" id="pill-Heda" onclick="setMgr('Heda')">HEDA</button>
-        <div style="margin-left:auto;display:flex;gap:8px;">
-          <button class="btn btn-red" onclick="genReport()"><span id="rpt-spin" style="display:none;" class="spin"></span> &#10022; GENERATE</button>
-          <button class="btn btn-outline" id="copy-btn" style="display:none;" onclick="copyRpt()">&#10022; COPY</button>
-          <button class="btn btn-green" id="send-btn" style="display:none;" onclick="sendRpt()"><span id="send-spin" style="display:none;" class="spin"></span> &#9993; SEND</button>
-        </div>
-      </div>
-      <div id="rpt-out"><div class="empty"><div class="empty-icon">&#128221;</div><div class="empty-title">Select a manager and click Generate</div></div></div>
     </div>
   </div>
 </div>
@@ -1687,7 +1538,7 @@ async function syncCal(){
         endTime:e.end.dateTime?ed.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}):'',
         duration:dur,attendees:att,description:e.description||''};
     });
-    renderCal();loadLog();toast(calEvents.length+' events loaded');
+    renderCal();toast(calEvents.length+' events loaded');
   }catch(e){toast('Calendar error: '+e.message,'err');}
   hideSp('cal-spin');
 }
