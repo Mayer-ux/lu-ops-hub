@@ -3,11 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="LU Hub"/>
 <meta name="theme-color" content="#191818"/>
-<link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon.png"/>
 <title>LU Weekly Operations Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -331,7 +329,7 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <div class="fu-section-title" style="margin-bottom:0;">Meeting Log History</div>
-          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog()">&#8635; REFRESH</button>
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog(true)">onclick="loadLog()">&#8635; REFRESH#8635; REFRESH</button>
         </div>
         <div id="meet-log"><div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div></div>
       </div>
@@ -851,7 +849,7 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <div class="fu-section-title" style="margin-bottom:0;">Meeting Log History</div>
-          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog()">&#8635; REFRESH</button>
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 12px;" onclick="loadLog(true)">onclick="loadLog()">&#8635; REFRESH#8635; REFRESH</button>
         </div>
         <div id="meet-log"><div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div></div>
       </div>
@@ -1940,6 +1938,10 @@ function renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK){
 
 // addCal defined below with full project/invitee support
 
+// ── TAB EXISTENCE CACHE (prevents redundant API calls → fixes 429s) ──
+var _tabEnsured={};
+var _meetingLinksCache=null; // in-memory cache for Meeting Links tab
+
 async function createSheetTab(title){
   await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+':batchUpdate',{
     method:'POST',
@@ -1947,16 +1949,17 @@ async function createSheetTab(title){
     body:JSON.stringify({requests:[{addSheet:{properties:{title:title}}}]})
   });
 }
-async function ensureTab(tabName,headers){
+async function ensureTab(tabName,hdrs){
+  // Only check once per session — skips redundant getRange calls that cause 429s
+  if(_tabEnsured[tabName])return;
   try{
     var d=await getRange(tabName);
-    // Tab exists but may be empty - add headers if so
-    if(!(d.values&&d.values.length)){await appRows(tabName,[headers]);}
+    if(!(d.values&&d.values.length)){await appRows(tabName,[hdrs]);}
   }catch(e){
-    // Tab doesn't exist - create it then add headers
     try{await createSheetTab(tabName);}catch(ce){}
-    try{await appRows(tabName,[headers]);}catch(ae){}
+    try{await appRows(tabName,[hdrs]);}catch(ae){}
   }
+  _tabEnsured[tabName]=true;
 }
 async function ensureLogTab(){
   await ensureTab(LOG_TAB,['Date','Time','Project','Manager','Meeting Title','Status Update','Next Steps','Manager Update Note','Logged At']);
@@ -1968,14 +1971,15 @@ async function ensureQueueTab(){
   await ensureTab(QUEUE_TAB,['Manager','Note','Source','Added On']);
 }
 async function ensureAllTabs(){
-  await ensureLogTab();
-  await ensureLinksTab();
-  await ensureQueueTab();
+  // Run in parallel to reduce round-trips; cached after first run
+  await Promise.all([ensureLogTab(),ensureLinksTab(),ensureQueueTab()]);
 }
 
 // ── MEETING LINKS (persist to sheet) ───────────────────────────────
 async function saveMeetingLink(e,projName){
   await ensureLinksTab();
+  // Invalidate cache so next load picks up new link
+  _meetingLinksCache=null;
   // Check if already linked
   try{
     var d=await getRange(LINKS_TAB);
@@ -1993,14 +1997,17 @@ async function saveMeetingLink(e,projName){
 }
 
 async function loadMeetingLinks(){
+  // Return cached result to avoid hammering the API (key source of 429s)
+  if(_meetingLinksCache!==null)return _meetingLinksCache;
   await ensureLinksTab();
   try{
     var d=await getRange(LINKS_TAB);
     var rows=(d.values||[]).slice(1).filter(function(r){return r[0];});
     var map={};
     rows.forEach(function(r){map[r[0]]=r[3];});
+    _meetingLinksCache=map;
     return map;
-  }catch(e){return {};}
+  }catch(e){_meetingLinksCache={};return {};}
 }
 
 // ── REPORT QUEUE (persist to sheet) ────────────────────────────────
@@ -2262,7 +2269,9 @@ async function saveFU(){
     if(no&&proj[mgrK]){
       await queueReportNote(proj[mgrK],'['+event.date+'] '+no,'Meeting Follow-Up');
     }
-    toast('Logged');closeModal('fu-modal');await fetchSheet();await loadFU();
+    toast('Logged');closeModal('fu-modal');
+    _logCache=null; // invalidate so next loadLog fetches fresh
+    await fetchSheet();await loadFU();
   }catch(e){toast('Failed: '+e.message,'err');}
   hideSp('fu-sv-sp');
 }
@@ -2284,13 +2293,21 @@ async function schedNext(){
     toast('Next meeting scheduled');await saveFU();
   }catch(e){toast('Schedule failed: '+e.message,'err');}
 }
-async function loadLog(){
+var _logCache=null; // cached log HTML
+
+async function loadLog(forceRefresh){
+  if(!forceRefresh&&_logCache!==null){
+    document.getElementById('meet-log').innerHTML=_logCache;return;
+  }
   await ensureLogTab();
   try{
     var d=await getRange(LOG_TAB);
     var rows=(d.values||[]).slice(1).filter(function(r){return r[0];});
     var el=document.getElementById('meet-log');
-    if(!rows.length){el.innerHTML='<div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div>';return;}
+    if(!rows.length){
+      _logCache='<div class="empty" style="padding:30px 0;"><div class="empty-title">No log entries yet</div></div>';
+      el.innerHTML=_logCache;return;
+    }
     var cols=['Date','Time','Project','Manager','Meeting','Status','Next Steps','Manager Note','Logged'];
     var html='<div style="overflow-x:auto;"><table class="tbl"><thead><tr>';
     cols.forEach(function(c){html+='<th>'+c+'</th>';});
@@ -2305,6 +2322,7 @@ async function loadLog(){
       html+='</tr>';
     });
     html+='</tbody></table></div>';
+    _logCache=html;
     el.innerHTML=html;
   }catch(e){}
 }
