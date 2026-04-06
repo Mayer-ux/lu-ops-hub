@@ -754,6 +754,7 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
 // ── TOKEN EXPIRY WATCH ────────────────────────────────────────────
 var tokenExpiry=0;
 var tokenWatchInterval=null;
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function startTokenWatch(){
   if(tokenWatchInterval)clearInterval(tokenWatchInterval);
@@ -1501,7 +1502,6 @@ function renderCal(){
   });
 
   // Build entire grid as one HTML string — single innerHTML write instead of hundreds of createElement calls
-  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   var gridHtml='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">';
 
   dayDates.forEach(function(dayDate,di){
