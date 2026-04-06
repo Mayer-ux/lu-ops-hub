@@ -1523,7 +1523,7 @@ function renderCal(){
       dayEvents.forEach(function(e){
         var fuIdx=fuEvents.findIndex(function(f){return f.id===e.id;});
         var fu=fuEvents[fuIdx];
-        var proj=fu?(fu.project||fu.manualProject):null;
+        var proj=fu?(fu.manualProject||fu.project):null;
         var isPast=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'))<=now;
         var borderColor=isPast?'var(--amber)':'var(--red)';
 
@@ -1991,9 +1991,8 @@ function linkFUFromSel(fuIdx, selEl){
   var p=active.find(function(proj){return proj[nk]===val;});
   if(!p) return;
 
-  // Update the data
+  // Update the data — set manualProject, keep auto project intact for fallback
   fuEvents[fuIdx].manualProject=p;
-  fuEvents[fuIdx].project=null;
   saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
 
   // Update the card in-place
