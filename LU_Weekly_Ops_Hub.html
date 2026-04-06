@@ -953,23 +953,34 @@ function objToRow(hdrs,obj){return hdrs.map(function(h){return obj[h]||'';});}
 async function fetchSheet(){
   setSyncing(true);
   try{
-    // Fetch both tabs in parallel — cuts sync time roughly in half
+    // Fetch both tabs in parallel
     var results=await Promise.all([
       getRange(CUR_TAB),
       getRange(COMP_TAB).catch(function(){return null;})
     ]);
-    var cur=results[0],comp=results[1];
-    var rows=cur.values||[];
+    // Parse immediately and null out raw responses to reduce GC pressure
+    var cur=results[0];results[0]=null;
+    var comp=results[1];results[1]=null;
+    results=null;
+
+    var rows=cur?cur.values||[]:[];cur=null;
     if(rows.length){
       headers=rows[0];
       projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});
     }
-    if(comp){var cr=comp.values||[];if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}}
+    rows=null;
+
+    if(comp){
+      var cr=comp.values||[];comp=null;
+      if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}
+      cr=null;
+    }
+
     renderTracker();
     var nk=compHdrs.find(function(h){return /name/i.test(h);})||'';
     document.getElementById('comp-count').textContent=completed.filter(function(p){return p[nk];}).length;
-    // Ensure persistence tabs exist — deferred well after UI is ready
-    setTimeout(function(){ensureAllTabs();},5000);
+    // Ensure persistence tabs exist — only once per session, deferred well after sync
+    setTimeout(function(){ensureAllTabs();},8000);
   }catch(e){toast('Failed to load: '+e.message,'err');}
   setSyncing(false);
 }
@@ -1665,9 +1676,14 @@ async function ensureLinksTab(){
 async function ensureQueueTab(){
   await ensureTab(QUEUE_TAB,['Manager','Note','Source','Added On']);
 }
+var _ensureAllTabsDone=false;
 async function ensureAllTabs(){
-  // Run in parallel to reduce round-trips; cached after first run
-  await Promise.all([ensureLogTab(),ensureLinksTab(),ensureQueueTab()]);
+  if(_ensureAllTabsDone)return;
+  _ensureAllTabsDone=true;
+  // Run sequentially (not parallel) to avoid memory spike from 3 simultaneous responses
+  await ensureLogTab();
+  await ensureLinksTab();
+  await ensureQueueTab();
 }
 
 // ── MEETING LINKS (persist to sheet) ───────────────────────────────
@@ -1692,14 +1708,15 @@ async function saveMeetingLink(e,projName){
 }
 
 async function loadMeetingLinks(){
-  // Return cached result to avoid hammering the API (key source of 429s)
   if(_meetingLinksCache!==null)return _meetingLinksCache;
   await ensureLinksTab();
   try{
     var d=await getRange(LINKS_TAB);
     var rows=(d.values||[]).slice(1).filter(function(r){return r[0];});
+    d=null; // free raw response
     var map={};
     rows.forEach(function(r){map[r[0]]=r[3];});
+    rows=null;
     _meetingLinksCache=map;
     return map;
   }catch(e){_meetingLinksCache={};return {};}
