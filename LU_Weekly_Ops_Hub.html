@@ -965,10 +965,9 @@ body{font-family:'Montserrat',Arial,sans-serif;background:var(--light);color:var
       <div class="field"><label>END</label><input id="ce" type="time" value="10:00"/></div>
     </div>
     <div class="field"><label>LINK TO PROJECT</label>
-      <select id="cal-proj" style="width:100%;border:1px solid var(--lg);border-radius:3px;padding:7px 10px;font-size:12px;font-family:'Montserrat',Arial,sans-serif;background:#fff;" onchange="showCalProjDetail()">
+      <select id="cal-proj" style="width:100%;border:1px solid var(--lg);border-radius:3px;padding:7px 10px;font-size:12px;font-family:'Montserrat',Arial,sans-serif;background:#fff;">
         <option value="">— No project link —</option>
       </select>
-      <div id="cal-proj-detail" style="display:none;margin-top:6px;background:#f5f4f0;border:1px solid var(--lg);border-radius:4px;padding:8px 10px;font-size:11px;color:var(--dark);line-height:1.5;"></div>
     </div>
     <div class="field">
       <label>INVITEES <span style="color:var(--mid);font-weight:400;">(search contacts)</span></label>
@@ -1663,8 +1662,7 @@ async function syncCal(){
     var mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);mon.setHours(0,0,0,0);
     var sun=new Date(mon);sun.setDate(mon.getDate()+4);sun.setHours(23,59,59,999);
     var baseUrl='https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+mon.toISOString()+'&timeMax='+sun.toISOString()+'&singleEvents=true&orderBy=startTime&maxResults=250';
-    var allItems=[];
-    var pageToken='';
+    var allItems=[];var pageToken='';
     do{
       var url=baseUrl+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
       var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
@@ -1826,25 +1824,15 @@ function renderCal(){
           }
           card.appendChild(projDiv);
         }else if(fuIdx>=0){
-          // Unmatched event - show inline link dropdown for ALL days (not just past)
+          // Unmatched event - show inline link dropdown on all days
           var linkDiv=document.createElement('div');
           linkDiv.style.marginTop='5px';
           var sel=document.createElement('select');
-          sel.style.cssText='width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:5px 6px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#222;color:#f59e0b;';
+          sel.style.cssText='width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#222;color:#f59e0b;';
           var def=document.createElement('option');def.value='';def.textContent='Link to project...';sel.appendChild(def);
           active.forEach(function(p,pi){sel.appendChild(buildProjOption(p,pi));});
-          var detailBox=document.createElement('div');
-          detailBox.style.cssText='display:none;margin-top:4px;background:#2a2a2a;border:1px solid #444;border-radius:3px;padding:6px 8px;color:#ccc;line-height:1.4;';
-          sel.addEventListener('change',(function(fi,db,act){return function(){
-            if(this.value!==''){
-              var pi=parseInt(this.value);
-              var p=act[pi];
-              if(p){db.innerHTML=buildProjDetailHTML(p);db.style.display='block';}
-              setTimeout((function(f,v){return function(){linkFU(f,v);renderCal();};})(fi,pi),1200);
-            }else{db.style.display='none';}
-          };})(fuIdx,detailBox,active));
+          sel.addEventListener('change',(function(fi){return function(){if(this.value!==''){linkFU(fi,parseInt(this.value));renderCal();}};})(fuIdx));
           linkDiv.appendChild(sel);
-          linkDiv.appendChild(detailBox);
           card.appendChild(linkDiv);
         }
 
@@ -1890,7 +1878,7 @@ function renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK){
         {txt:e.attendees&&e.attendees.length?e.attendees.join(', '):'—',css:'font-size:11px;color:#ccc;max-width:180px;'}
       ];
       cells.forEach(function(c){var td=document.createElement('td');td.style.cssText=c.css;td.textContent=c.txt;tr.appendChild(td);});
-      var tdSel=document.createElement('td');tdSel.style.minWidth='320px';
+      var tdSel=document.createElement('td');tdSel.style.minWidth='280px';
       var sel=document.createElement('select');
       sel.style.cssText='width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:6px 8px;font-size:11px;font-family:Montserrat,Arial,sans-serif;background:#1a1500;color:#f59e0b;';
       var def=document.createElement('option');def.value='';def.textContent='— Select project —';sel.appendChild(def);
@@ -2069,19 +2057,14 @@ async function loadFU(){
 function buildProjOption(p,idx){
   var nk=K(/name/i)||headers[0]||'';
   var dueK=K(/due.?date/i),entK=K(/entity/i);
-  var mgrK=K(/manager/i),statK=K(/status/i);
   var noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
   var opt=document.createElement('option');
   opt.value=String(idx);
   var ent=p[entK]||'—';
   var due=p[dueK]||'TBD';
-  var mgr=p[mgrK]||'';
-  var stat=p[statK]||'';
-  var label=p[nk]+' ⟩ '+ent+(stat?' · '+stat:'')+(mgr?' · '+mgr:'')+(due?' · Due: '+due:'');
+  var label=ent+' | '+p[nk]+' | '+due;
   opt.textContent=label;
-  var tooltip='Project: '+p[nk]+'\nEntity: '+ent+'\nStatus: '+(stat||'—')+'\nManager: '+(mgr||'—')+'\nDue: '+due;
-  if(p[noteK]) tooltip+='\nNotes: '+p[noteK];
-  opt.title=tooltip;
+  if(p[noteK]){opt.title=p[noteK];}
   return opt;
 }
 
@@ -2110,7 +2093,7 @@ function renderFU(){
       var tdTime=document.createElement('td');tdTime.style.cssText='white-space:nowrap;color:var(--light);background:'+umRowBg;tdTime.textContent=ts;
       var tdDur=document.createElement('td');tdDur.style.cssText='white-space:nowrap;color:var(--mid);background:'+umRowBg;tdDur.textContent=e.duration||'—';
       var tdAtt=document.createElement('td');tdAtt.style.cssText='font-size:11px;color:#ccc;max-width:200px;background:'+umRowBg;tdAtt.textContent=e.attendees&&e.attendees.length?e.attendees.join(', '):'—';
-      var tdSel=document.createElement('td');tdSel.style.cssText='min-width:340px;background:'+umRowBg;
+      var tdSel=document.createElement('td');tdSel.style.cssText='min-width:300px;background:'+umRowBg;
       var sel=document.createElement('select');
       sel.style.cssText='width:100%;border:1px solid var(--lg);border-radius:3px;padding:6px 8px;font-size:11px;font-family:Montserrat,Arial,sans-serif;background:#fff;';
       var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Select project —';sel.appendChild(defOpt);
@@ -2739,47 +2722,7 @@ function openCalModal(prefillTitle, prefillDate){
   projects.filter(function(p){return p[nk];}).forEach(function(p,pi){
     sel.appendChild(buildProjOption(p,pi));
   });
-  document.getElementById('cal-proj-detail').style.display='none';
-  document.getElementById('cal-proj-detail').innerHTML='';
   openModal('cal-modal');
-}
-
-function showCalProjDetail(){
-  var sel=document.getElementById('cal-proj');
-  var detailDiv=document.getElementById('cal-proj-detail');
-  if(!sel.value){detailDiv.style.display='none';detailDiv.innerHTML='';return;}
-  var nk=K(/name/i)||headers[0]||'';
-  var active=projects.filter(function(p){return p[nk];});
-  var idx=parseInt(sel.value);
-  var p=active[idx];
-  if(!p){detailDiv.style.display='none';return;}
-  var mgrK=K(/manager/i),statK=K(/status/i),dueK=K(/due.?date/i),entK=K(/entity/i);
-  var noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
-  var html='<div style="font-weight:700;font-size:12px;margin-bottom:4px;color:var(--dark);">'+p[nk]+'</div>';
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;">';
-  html+='<span><b style="color:var(--mid);">Entity:</b> '+(p[entK]||'—')+'</span>';
-  html+='<span><b style="color:var(--mid);">Status:</b> '+(p[statK]||'—')+'</span>';
-  html+='<span><b style="color:var(--mid);">Manager:</b> '+(p[mgrK]||'—')+'</span>';
-  html+='<span><b style="color:var(--mid);">Due:</b> '+(p[dueK]||'TBD')+'</span>';
-  html+='</div>';
-  if(p[noteK]){html+='<div style="margin-top:4px;border-top:1px solid var(--lg);padding-top:4px;"><b style="color:var(--mid);">Notes:</b> '+p[noteK]+'</div>';}
-  detailDiv.innerHTML=html;
-  detailDiv.style.display='block';
-}
-
-function buildProjDetailHTML(p){
-  var nk=K(/name/i)||headers[0]||'';
-  var mgrK=K(/manager/i),statK=K(/status/i),dueK=K(/due.?date/i),entK=K(/entity/i);
-  var noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
-  var html='<div style="font-weight:700;font-size:10px;margin-bottom:3px;color:var(--light);">'+p[nk]+'</div>';
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:9px;">';
-  html+='<span><span style="color:#888;">Entity:</span> '+(p[entK]||'—')+'</span>';
-  html+='<span><span style="color:#888;">Status:</span> '+(p[statK]||'—')+'</span>';
-  html+='<span><span style="color:#888;">Mgr:</span> '+(p[mgrK]||'—')+'</span>';
-  html+='<span><span style="color:#888;">Due:</span> '+(p[dueK]||'TBD')+'</span>';
-  html+='</div>';
-  if(p[noteK]){html+='<div style="margin-top:2px;font-size:9px;"><span style="color:#888;">Notes:</span> '+p[noteK].substring(0,80)+(p[noteK].length>80?'…':'')+'</div>';}
-  return html;
 }
 
 async function searchContacts(){
