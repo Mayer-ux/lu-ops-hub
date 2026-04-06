@@ -1543,13 +1543,16 @@ function renderCal(){
           }
           gridHtml+='</div>';
         }else if(fuIdx>=0){
-          gridHtml+='<div style="margin-top:5px;"><select onchange="if(this.value){linkFU('+fuIdx+',parseInt(this.value));this.value=\'\';renderCal();}" style="width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#222;color:#f59e0b;">';
-          gridHtml+='<option value="">Link to project...</option>';
+          // Show a proper "Link" button that opens a modal-style picker instead of a cramped inline dropdown
+          gridHtml+='<div style="margin-top:5px;">';
+          gridHtml+='<select id="linksel-'+fuIdx+'" onchange="linkFUFromSel('+fuIdx+',this)" style="width:100%;border:1px solid rgba(245,158,11,.4);border-radius:3px;padding:4px 5px;font-size:10px;font-family:Montserrat,Arial,sans-serif;background:#1a1200;color:#f59e0b;">';
+          gridHtml+='<option value="">⬡ Link to project…</option>';
           active.forEach(function(p,pi){
-            var ent=entK?p[entK]:'',pname=nk?p[nk]:'',due=dueK?p[dueK]:'';
-            if(ent===pname)ent='';
-            var parts=[];if(ent)parts.push(ent);if(pname)parts.push(pname);parts.push(due||'TBD');
-            gridHtml+='<option value="'+pi+'">'+esc(parts.join(' | '))+'</option>';
+            var mgr=mgrK?p[mgrK]:'';
+            var pname=nk?p[nk]:'';
+            var stat=statK?p[statK]:'';
+            var label=pname+(mgr?' ['+mgr[0]+']':'')+(stat&&stat!=='Not Started'?' · '+stat:'');
+            gridHtml+='<option value="'+pi+'">'+esc(label)+'</option>';
           });
           gridHtml+='</select></div>';
         }
@@ -1841,10 +1844,21 @@ function renderFU(){
       var tdAtt=document.createElement('td');tdAtt.style.cssText='font-size:11px;color:#ccc;max-width:200px;background:'+umRowBg;tdAtt.textContent=e.attendees&&e.attendees.length?e.attendees.join(', '):'—';
       var tdSel=document.createElement('td');tdSel.style.cssText='min-width:300px;background:'+umRowBg;
       var sel=document.createElement('select');
-      sel.style.cssText='width:100%;border:1px solid var(--lg);border-radius:3px;padding:6px 8px;font-size:11px;font-family:Montserrat,Arial,sans-serif;background:#fff;';
-      var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Select project —';sel.appendChild(defOpt);
-      active.forEach(function(p,pi){sel.appendChild(buildProjOption(p,pi));});
-      sel.addEventListener('change',function(){linkFU(idx,parseInt(this.value));});
+      sel.style.cssText='width:100%;border:1px solid var(--lg);border-radius:3px;padding:6px 8px;font-size:12px;font-family:Montserrat,Arial,sans-serif;background:#fff;color:#191818;';
+      var defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='— Select project to link —';sel.appendChild(defOpt);
+      active.forEach(function(p,pi){
+        var mgr=mgrK?p[mgrK]:'';
+        var pname=nk?p[nk]:'';
+        var stat=statK?p[statK]:'';
+        var label=pname+(mgr?' ['+mgr[0]+']':'')+(stat&&stat!=='Not Started'?' · '+stat:'');
+        var opt=document.createElement('option');opt.value=String(pi);opt.textContent=label;sel.appendChild(opt);
+      });
+      sel.addEventListener('change',(function(fi,cellEl){return function(){
+        if(!this.value)return;
+        var selectedText=this.options[this.selectedIndex].text;
+        linkFUFromSel(fi,this);
+        cellEl.innerHTML='<span style="color:#22c55e;font-weight:700;font-size:12px;">✓ '+selectedText+'</span>';
+      };})(idx,tdSel));
       tdSel.appendChild(sel);
       tr.appendChild(tdTitle);tr.appendChild(tdDate);tr.appendChild(tdTime);tr.appendChild(tdDur);tr.appendChild(tdAtt);tr.appendChild(tdSel);
       umBody.appendChild(tr);
@@ -1946,16 +1960,47 @@ function renderFU(){
   }else{ovEl.style.display='none';}
 }
 
+function linkFUFromSel(fuIdx, selEl){
+  var val = selEl.value;
+  if(!val) return;
+  var projIdx = parseInt(val);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
+  var mgrK=K(/manager/i);
+  var active=projects.filter(function(p){return p[nk];});
+  var p=active[projIdx];
+  if(!p) return;
+
+  // Link the event
+  fuEvents[fuIdx].manualProject=p;
+  saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
+
+  // Update the card in-place instead of re-rendering the whole calendar
+  var mc=MC[p[mgrK]]||'#b0aea5';
+  var container=selEl.parentElement;
+  container.innerHTML=
+    '<div style="display:flex;align-items:center;gap:4px;margin-top:5px;">'+
+    '<span style="background:'+mc+'22;color:'+mc+';border:1px solid '+mc+'44;border-radius:3px;padding:2px 7px;font-size:9px;font-weight:700;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="'+p[nk]+'">'+p[nk]+'</span>'+
+    '<button onclick="_unlinkFU('+fuIdx+',this)" style="background:transparent;color:#888;border:none;font-size:11px;cursor:pointer;padding:0 2px;" title="Unlink">✕</button>'+
+    '</div>';
+
+  toast('Linked: '+p[nk]);
+}
+
+function _unlinkFU(fuIdx, btn){
+  fuEvents[fuIdx].manualProject=null;
+  _renderCalBusy=false;
+  renderCal();
+}
+
 function linkFU(fuIdx,projIdx){
   var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
   var p=active[projIdx];
   if(p){
-      fuEvents[fuIdx].manualProject=p;
-    // Persist link to sheet
+    fuEvents[fuIdx].manualProject=p;
     saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
+    _renderCalBusy=false;
     renderCal();
-  }else{
   }
 }
 
