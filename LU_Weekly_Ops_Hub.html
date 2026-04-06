@@ -1113,8 +1113,8 @@ async function fetchSheet(){
     renderTracker();
     var nk=compHdrs.find(function(h){return /name/i.test(h);})||'';
     document.getElementById('comp-count').textContent=completed.filter(function(p){return p[nk];}).length;
-    // Ensure persistence tabs exist in background — don't block UI
-    setTimeout(function(){ensureAllTabs();},500);
+    // Ensure persistence tabs exist — deferred well after UI is ready
+    setTimeout(function(){ensureAllTabs();},5000);
   }catch(e){toast('Failed to load: '+e.message,'err');}
   setSyncing(false);
 }
@@ -1512,35 +1512,60 @@ async function markDone(idx){
   setSyncing(false);
 }
 
+var _syncInProgress=false;
 async function syncCal(){
+  if(_syncInProgress)return;
+  _syncInProgress=true;
   showSp('cal-spin');
   try{
+    // Step 1: fetch calendar only — no other requests competing
     var today=new Date();
     var mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);mon.setHours(0,0,0,0);
     var sun=new Date(mon);sun.setDate(mon.getDate()+4);sun.setHours(23,59,59,999);
-    var baseUrl='https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+mon.toISOString()+'&timeMax='+sun.toISOString()+'&singleEvents=true&orderBy=startTime&maxResults=250';
-    var allItems=[];var pageToken='';
-    do{
-      var url=baseUrl+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
-      var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
-      var d=await res.json();if(d.error)throw new Error(d.error.message);
-      allItems=allItems.concat(d.items||[]);
-      pageToken=d.nextPageToken||'';
-    }while(pageToken);
-    calEvents=allItems.map(function(e){
+    var url='https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+mon.toISOString()+'&timeMax='+sun.toISOString()+'&singleEvents=true&orderBy=startTime&maxResults=50';
+    var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
+    var d=await res.json();
+    if(d.error)throw new Error(d.error.message);
+    calEvents=(d.items||[]).map(function(e){
       var s=e.start.dateTime||e.start.date,en=e.end.dateTime||e.end.date;
       var sd=new Date(s),ed=new Date(en);
       var dur='';
       if(e.start.dateTime&&e.end.dateTime){var mins=Math.round((ed-sd)/60000);dur=mins>=60?Math.floor(mins/60)+'h'+(mins%60?mins%60+'m':''):mins+'m';}
-      var att=(e.attendees||[]).map(function(a){return a.displayName||a.email||'';}).filter(function(a){return a;});
+      var att=(e.attendees||[]).map(function(a){return a.displayName||a.email||'';}).filter(Boolean);
       return{id:e.id,title:e.summary||'(No title)',date:s.slice(0,10),
         startTime:e.start.dateTime?sd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}):'All day',
         endTime:e.end.dateTime?ed.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false}):'',
         duration:dur,attendees:att,description:e.description||''};
     });
-    renderCal();toast(calEvents.length+' events loaded');
+
+    // Step 2: render the calendar immediately with what we have
+    renderCal();
+    toast(calEvents.length+' events loaded');
+
+    // Step 3: load meeting links in background AFTER render, only if cache is empty
+    if(_meetingLinksCache===null){
+      setTimeout(function(){
+        loadMeetingLinks().then(function(linkMap){
+          var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
+          var active=projects.filter(function(p){return p[nk];});
+          var changed=false;
+          fuEvents.forEach(function(fe){
+            if(!fe.project&&!fe.manualProject&&linkMap[fe.id]){
+              var p=active.find(function(x){return x[nk]===linkMap[fe.id];});
+              if(p){fe.manualProject=p;changed=true;}
+            }
+          });
+          if(changed){_renderCalBusy=false;renderCal();}
+        });
+      },800);
+    }
+
+    // Step 4: load log in background after everything else settles
+    setTimeout(function(){loadLog();},1200);
+
   }catch(e){toast('Calendar error: '+e.message,'err');}
   hideSp('cal-spin');
+  _syncInProgress=false;
 }
 var _renderCalBusy=false;
 function renderCal(){
@@ -1557,7 +1582,7 @@ function renderCal(){
     return;
   }
 
-  // Build fuEvents — auto-match
+  // Build fuEvents — auto-match only (meeting links restored by syncCal after render)
   fuEvents=calEvents.map(function(e){
     var tl=e.title.toLowerCase();
     var tag=e.title.match(/\[([^\]]+)\]/);
@@ -1567,19 +1592,10 @@ function renderCal(){
       var words=p[nk].toLowerCase().split(/\s+/).filter(function(w){return w.length>3;});
       return words.some(function(w){return tl.indexOf(w)>=0;});
     });
-    return Object.assign({},e,{project:matched||null,manualProject:null});
-  });
-
-  // Restore persisted manual links — async, re-render once if anything changed
-  loadMeetingLinks().then(function(linkMap){
-    var changed=false;
-    fuEvents.forEach(function(fe){
-      if(!fe.project&&!fe.manualProject&&linkMap[fe.id]){
-        var p=active.find(function(x){return x[nk]===linkMap[fe.id];});
-        if(p){fe.manualProject=p;changed=true;}
-      }
-    });
-    if(changed){_renderCalBusy=false;renderCal();}
+    // Apply any already-cached manual links
+    var cached=(_meetingLinksCache&&_meetingLinksCache[e.id])||null;
+    var manualProj=cached?active.find(function(p){return p[nk]===cached;})||null:null;
+    return Object.assign({},e,{project:matched||null,manualProject:manualProj});
   });
 
   var today=new Date();
@@ -1668,7 +1684,7 @@ function renderCal(){
   el.innerHTML=gridHtml;
 
   renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK);
-  loadLog();
+  // loadLog is called by syncCal after a delay — not here
 }
 
 function renderFUPanels(unmatched,matched,active,nk,mgrK,statK,dueK,entK){
