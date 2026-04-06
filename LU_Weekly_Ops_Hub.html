@@ -1250,7 +1250,7 @@ async function fetchSheet(){
   setSyncing(true);
   try{
     var cur=await getRange(CUR_TAB);var rows=cur.values||[];
-    if(rows.length){headers=rows[0];projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});}
+    if(rows.length){headers=rows[0];console.log('[LU Hub] Sheet headers loaded:',JSON.stringify(headers));projects=rows.slice(1).map(function(r,i){return rowToObj(headers,r,i+2);});console.log('[LU Hub] First project:',JSON.stringify(projects[0]));}
     try{
       var comp=await getRange(COMP_TAB);var cr=comp.values||[];
       if(cr.length){compHdrs=cr[0];completed=cr.slice(1).map(function(r,i){return rowToObj(compHdrs,r,i+2);});}
@@ -1275,7 +1275,7 @@ function switchInnerTab(name){
 }
 
 function renderTracker(){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var mgrK=K(/manager/i),statK=K(/status/i),prioK=K(/priority/i);
   var entK=K(/entity/i),typeK=K(/project.?type|^type$/i),dueK=K(/due.?date/i),bonK=K(/bonus/i);
   var noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
@@ -1357,7 +1357,7 @@ function renderTracker(){
 }
 
 async function completeTodo(idx,isHL){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
   var p=active[idx];
   if(!confirm('Mark "'+p[nk]+'" as done and move to Completed?'))return;
@@ -1411,7 +1411,7 @@ function buildForm(proj){
 function openAddModal(){openNewModal('project');}
 
 function openEditModal(idx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
   var p=active[idx];
   if(!p)return;
@@ -1464,7 +1464,7 @@ function openNewModal(type,prefill){
     title.textContent='New Meeting';
     saveBtn.style.background='#3b82f6';
     saveBtn.childNodes[saveBtn.childNodes.length-1].textContent=' Add to Calendar';
-    var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+    var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
     var active=projects.filter(function(p){return p[nk];});
     buildNewForm(form,prefill,[
       {key:'title',label:'MEETING TITLE',type:'text',req:true,full:true},
@@ -1518,8 +1518,8 @@ function buildNewForm(form,prefill,fields){
     wrap.appendChild(ctrl);
     // Pre-fill values when editing existing item
     if(prefill&&ctrl){
-      var keyMap={name:K(/^project.?name$/i)||K(/name/i)||headers[0]||'',
-        title:K(/^project.?name$/i)||K(/name/i)||headers[0]||'',
+      var keyMap={name:K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',
+        title:K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',
         manager:K(/manager/i),status:K(/status/i),priority:K(/priority/i),
         entity:K(/entity/i),due:K(/due.?date/i),bonus:K(/bonus/i),
         notes:headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||''};
@@ -1547,7 +1547,7 @@ async function saveNewItem(){
       var start=data.start||'09:00',end=data.end||'10:00';
       var desc=data.notes||'';
       if(data.project!==''){
-        var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+        var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
         var active=projects.filter(function(p){return p[nk];});
         var proj=active[parseInt(data.project)];
         if(proj){
@@ -1563,7 +1563,7 @@ async function saveNewItem(){
       var d=await res.json();if(d.error)throw new Error(d.error.message);
       // If linked to project, save the link
       if(data.project!==''){
-        var nk2=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+        var nk2=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
         var active2=projects.filter(function(p){return p[nk2];});
         var proj2=active2[parseInt(data.project)];
         if(proj2){
@@ -1580,7 +1580,7 @@ async function saveNewItem(){
   }
 
   // Project or Todo — write to sheet
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var nameVal=data.name||data.title||'';
   if(!nameVal.trim()){toast('Name is required.','err');return;}
   showSp('new-spin');
@@ -1622,7 +1622,7 @@ async function saveProj(){
   var inputs=document.querySelectorAll('#edit-form [data-key]');
   var data=editProj?Object.assign({},editProj):{_row:null};
   inputs.forEach(function(el){data[el.dataset.key]=el.value;});
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0];
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0];
   if(!data[nk]||!data[nk].trim()){toast('Project name is required.','err');return;}
   showSp('save-spin');
   try{
@@ -1633,7 +1633,7 @@ async function saveProj(){
   hideSp('save-spin');
 }
 async function delProj(idx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
   var p=active[idx];
   if(!confirm('Delete this project?'))return;
@@ -1643,7 +1643,7 @@ async function delProj(idx){
   setSyncing(false);
 }
 async function markDone(idx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
   var p=active[idx];
   if(!confirm('Move to Completed?'))return;
@@ -1689,7 +1689,7 @@ async function syncCal(){
 }
 function renderCal(){
   var el=document.getElementById('cal-list');
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var mgrK=K(/manager/i),statK=K(/status/i),dueK=K(/due.?date/i),entK=K(/entity/i);
   var active=projects.filter(function(p){return p[nk];});
   var now=new Date();
@@ -2034,7 +2034,7 @@ async function clearReportQueue(mgr){
 async function loadFU(){
   showSp('fu-spin');
   if(!calEvents.length)await syncCal();
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',now=new Date();
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',now=new Date();
   var past=calEvents.filter(function(e){
     var d=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'));
     return d<=now;
@@ -2057,21 +2057,36 @@ async function loadFU(){
 }
 
 function buildProjOption(p,idx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
-  var dueK=K(/due.?date/i),entK=K(/entity/i);
+  // Try specific header first, then generic, then first column
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
+  var dueK=K(/due.?date$/i)||K(/deadline/i)||K(/due/i)||'';
+  var entK=K(/^entity$/i)||K(/entity/i)||'';
   var noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
+  // Debug: log on first call only
+  if(!buildProjOption._logged){
+    buildProjOption._logged=true;
+    console.log('[LU Hub] headers:', JSON.stringify(headers));
+    console.log('[LU Hub] resolved keys → nk:',nk,' entK:',entK,' dueK:',dueK,' noteK:',noteK);
+    console.log('[LU Hub] sample project:', JSON.stringify(p));
+  }
   var opt=document.createElement('option');
   opt.value=String(idx);
-  var ent=p[entK]||'—';
-  var projName=p[nk]||'—';
-  var due=p[dueK]||'TBD';
-  opt.textContent=ent+' | '+projName+' | '+due;
-  if(p[noteK]){opt.title=p[noteK];}
+  var ent=entK?p[entK]:'';
+  var projName=nk?p[nk]:'';
+  var due=dueK?p[dueK]:'';
+  // Guard against entity==name (same column matched twice)
+  if(ent===projName)ent='';
+  var parts=[];
+  if(ent)parts.push(ent);
+  if(projName)parts.push(projName);
+  parts.push(due||'TBD');
+  opt.textContent=parts.join(' | ');
+  if(noteK&&p[noteK]){opt.title=p[noteK];}
   return opt;
 }
 
 function renderFU(){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   var dueK=K(/due.?date/i),entK=K(/entity/i);
   var unmatched=fuEvents.filter(function(e){return !e.project&&!e.manualProject;});
   var matched=fuEvents.filter(function(e){return e.project||e.manualProject;});
@@ -2203,20 +2218,24 @@ function renderFU(){
 }
 
 function linkFU(fuIdx,projIdx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var active=projects.filter(function(p){return p[nk];});
+  console.log('[LU Hub] linkFU: fuIdx='+fuIdx+' projIdx='+projIdx+' nk='+nk+' active.length='+active.length);
   var p=active[projIdx];
   if(p){
+    console.log('[LU Hub] linkFU: linking to project:', p[nk]);
     fuEvents[fuIdx].manualProject=p;
     // Persist link to sheet
     saveMeetingLink(fuEvents[fuIdx],p[nk]).catch(function(){});
     renderCal();
+  }else{
+    console.warn('[LU Hub] linkFU: no project found at index '+projIdx+' in active array of '+active.length);
   }
 }
 
 function openFUModal(idx){
   var e=fuEvents[idx],p=e.project||e.manualProject;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   curFU={idx:idx,proj:p,event:e};
   var d=new Date(e.date+(e.startTime&&e.startTime!=='All day'?'T'+e.startTime+':00':'T00:00'));
   var ds=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
@@ -2232,7 +2251,7 @@ function openFUModal(idx){
 async function saveFU(){
   if(!curFU)return;showSp('fu-sv-sp');
   var proj=curFU.proj,event=curFU.event;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   var ns=document.getElementById('fu-st').value;
   var nx=document.getElementById('fu-nx').value;
   var no=document.getElementById('fu-no').value;
@@ -2374,7 +2393,7 @@ document.querySelectorAll('.overlay').forEach(function(el){
 function openTranscriptModal(fuIdx){
   txFUEvent=fuEvents[fuIdx];txSelectedFile=null;
   var e=txFUEvent,p=e.project||e.manualProject;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   document.getElementById('tx-meeting-title').textContent=e.title;
   document.getElementById('tx-meeting-meta').textContent=(p?'Project: '+p[nk]+' · ':'')+e.date+' at '+e.startTime;
   document.getElementById('tx-results').innerHTML='';
@@ -2459,7 +2478,7 @@ async function extractFromPaste(){
 async function runExtraction(transcriptText){
   var e=txFUEvent;
   var p=e?e.project||e.manualProject:null;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var projContext=p?'Project: '+p[nk]:' ';
   try{
     var body=JSON.stringify({
@@ -2491,7 +2510,7 @@ async function saveTranscriptFU(){
   if(!txFUEvent)return;
   showSp('tx-save-spin');
   var e=txFUEvent,p=e.project||e.manualProject;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   var ns=document.getElementById('tx-status').value;
   var nx=document.getElementById('tx-next').value;
   var no=document.getElementById('tx-note').value;
@@ -2541,7 +2560,7 @@ function labelTableCells(){
 function openTranscriptModal(fuIdx){
   txFUEvent=fuEvents[fuIdx];txSelectedFile=null;
   var e=txFUEvent,p=e.project||e.manualProject;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   document.getElementById('tx-meeting-title').textContent=e.title;
   document.getElementById('tx-meeting-meta').textContent=(p?'Project: '+p[nk]+' · ':'')+e.date+' at '+e.startTime;
   document.getElementById('tx-results').innerHTML='';
@@ -2626,7 +2645,7 @@ async function extractFromPaste(){
 async function runExtraction(transcriptText){
   var e=txFUEvent;
   var p=e?e.project||e.manualProject:null;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var projContext=p?'Project: '+p[nk]:' ';
   try{
     var body=JSON.stringify({
@@ -2658,7 +2677,7 @@ async function saveTranscriptFU(){
   if(!txFUEvent)return;
   showSp('tx-save-spin');
   var e=txFUEvent,p=e.project||e.manualProject;
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',mgrK=K(/manager/i),statK=K(/status/i);
   var ns=document.getElementById('tx-status').value;
   var nx=document.getElementById('tx-next').value;
   var no=document.getElementById('tx-note').value;
@@ -2720,7 +2739,7 @@ function openCalModal(prefillTitle, prefillDate){
   // Populate project dropdown
   var sel=document.getElementById('cal-proj');
   sel.innerHTML='<option value="">— No project link —</option>';
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   projects.filter(function(p){return p[nk];}).forEach(function(p,pi){
     sel.appendChild(buildProjOption(p,pi));
   });
@@ -2847,7 +2866,7 @@ async function addCal(){
     var desc=agenda||'';
     // Add project context
     if(projSel&&projSel.value!==''){
-      var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+      var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
       var active=projects.filter(function(p){return p[nk];});
       var proj=active[parseInt(projSel.value)];
       if(proj)desc=(desc?desc+'\n\n':'')+'Project: '+proj[nk];
@@ -2870,7 +2889,7 @@ async function addCal(){
 
 // Update openCalForProj to use new openCalModal
 function openCalForProj(idx){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'',dk=K(/due.?date/i);
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'',dk=K(/due.?date/i);
   var active=projects.filter(function(p){return p[nk];});
   var p=active[idx];
   openCalModal('['+p[nk]+'] Meeting',p[dk]||'');
@@ -2883,7 +2902,7 @@ function openCalForProj(idx){
 
 // ── REPORT FUNCTIONS ──────────────────────────────────────────────
 function populateReport(){
-  var nk=K(/^project.?name$/i)||K(/name/i)||headers[0]||'';
+  var nk=K(/^project.?name$/i)||K(/^name$/i)||K(/name/i)||headers[0]||'';
   var mgrK=K(/manager/i),statK=K(/status/i),dueK=K(/due.?date/i);
   var bonK=K(/bonus/i),noteK=headers.find(function(h){return /note|desc/i.test(h)&&!/deadline/i.test(h);})||'';
   var typeK=K(/project.?type|^type$/i);
